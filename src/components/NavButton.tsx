@@ -18,9 +18,10 @@ interface NavButtonProps {
   className?: string;
   imageSrc?: string;
   onClick?: () => void;
+  children?: React.ReactNode;
 }
 
-export function NavButton({ ariaLabel, variant = "neutral", className, imageSrc, onClick }: NavButtonProps) {
+export function NavButton({ ariaLabel, variant = "neutral", className, imageSrc, onClick, children }: NavButtonProps) {
   const classes = twMerge(clsx(navButtonBase, navButtonVariants[variant], className));
   const normalizedSrc = imageSrc
     ? imageSrc.startsWith("@")
@@ -28,6 +29,8 @@ export function NavButton({ ariaLabel, variant = "neutral", className, imageSrc,
       : imageSrc
     : undefined;
   return (
-    <button aria-label={ariaLabel} className={classes} onClick={onClick} style={normalizedSrc ? { backgroundImage: `url(${normalizedSrc})` } : undefined} />
+    <button aria-label={ariaLabel} className={classes} onClick={onClick} style={normalizedSrc ? { backgroundImage: `url(${normalizedSrc})` } : undefined}>
+      {children}
+    </button>
   );
 }

@@ -54,7 +54,11 @@ export function SideBar({ selectedServer, onServerSelect }: SideBarProps) {
     <aside className="w-18 max-w-18 mt-[-1px]">
       {/* Top Nav Button is above the rest. Must stay at top of the page. */}
       <div className="flex flex-col items-center gap-[7px] px-2">
-        <NavButton ariaLabel="Timeline" variant="primary" />
+        <NavButton ariaLabel="Timeline" variant="primary" className="flex items-center justify-center">
+          <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+          </svg>
+        </NavButton>
         <div className="w-8 h-px bg-[var(--header-border)] " />
       </div>
 
