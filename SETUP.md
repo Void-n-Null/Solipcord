@@ -59,6 +59,10 @@ DATABASE_URL="postgresql://prisma:prisma@localhost:51213/neural_social_network"
 
 # For SQLite (Option C - change schema.prisma provider to "sqlite")
 # DATABASE_URL="file:./dev.db"
+
+# Runware API Configuration (Required for AI image generation)
+# Get your API key from: https://runware.ai/
+RUNWARE_API_KEY=your_runware_api_key_here
 ```
 
 **Note:** If using Prisma Dev Server, press `h` in the terminal to get the exact database URL.
@@ -100,9 +104,10 @@ npm run dev
 ## What's NOT Included
 
 - **Database Data**: Each instance starts with empty database
-- **Environment Variables**: You must configure your own `.env`
+- **Environment Variables**: You must configure your own `.env` including Runware API key
 - **Database Files**: SQLite files are gitignored
 - **Generated Code**: Prisma client is generated locally
+- **API Keys**: Runware API key must be obtained separately
 
 ## Features
 
@@ -129,6 +134,13 @@ npm run dev
 - Run `npx prisma migrate dev` for schema updates
 - Check `prisma/schema.prisma` for syntax errors
 - If Prisma commands fail, try installing Prisma globally: `npm install -g prisma`
+
+### Runware API Issues
+- Ensure `RUNWARE_API_KEY` is set in your `.env` file
+- Get your API key from [https://runware.ai/](https://runware.ai/)
+- Check browser console for API key errors
+- Verify your Runware account has sufficient credits
+- If image generation fails, check the network tab for API response details
 
 ## Development
 

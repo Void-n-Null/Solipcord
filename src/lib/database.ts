@@ -17,6 +17,14 @@ if (process.env.NODE_ENV === 'development') {
 
 // Database utility functions for Discord-like operations
 
+// Generate a random RGB color
+function generateRandomRGB(): string {
+  const r = Math.floor(Math.random() * 256);
+  const g = Math.floor(Math.random() * 256);
+  const b = Math.floor(Math.random() * 256);
+  return `rgb(${r},${g},${b})`;
+}
+
 export class DiscordDatabase {
   constructor(private client: PrismaClient = prisma) {}
 
@@ -46,12 +54,14 @@ export class DiscordDatabase {
   async createPersona(data: {
     username: string;
     imageUrl?: string;
+    headerColor?: string;
     friendsIds?: string[];
     isFriendOfUser?: boolean;
   }) {
     return this.client.persona.create({
       data: {
         ...data,
+        headerColor: data.headerColor || generateRandomRGB(),
         friendsIds: data.friendsIds || [],
         isFriendOfUser: data.isFriendOfUser || false,
       },
@@ -286,10 +296,17 @@ export class DiscordDatabase {
   }
 
   // Remove persona as friend of user
-  async removePersonaAsFriend(personaId: string) {
+  async removePersonaFromUserFriends(personaId: string) {
     return this.client.persona.update({
       where: { id: personaId },
       data: { isFriendOfUser: false },
+    });
+  }
+
+  // Delete persona completely from database
+  async deletePersona(personaId: string) {
+    return this.client.persona.delete({
+      where: { id: personaId },
     });
   }
 
@@ -315,6 +332,22 @@ export class DiscordDatabase {
     });
   }
 
+  // Ensure all personas have header colors
+  async ensurePersonaHeaderColors() {
+    const personasWithoutColors = await this.client.persona.findMany({
+      where: { headerColor: null },
+    });
+
+    for (const persona of personasWithoutColors) {
+      await this.client.persona.update({
+        where: { id: persona.id },
+        data: { headerColor: generateRandomRGB() },
+      });
+    }
+
+    return personasWithoutColors.length;
+  }
+
   // Initialize default data for a new instance
   async initializeDefaultData(userId: string) {
     // Create some default AI personas
@@ -322,18 +355,21 @@ export class DiscordDatabase {
       this.createPersona({
         username: 'Alice',
         imageUrl: '/avatars/alice.png',
+        headerColor: generateRandomRGB(),
         friendsIds: [],
         isFriendOfUser: true, // Alice starts as a friend
       }),
       this.createPersona({
         username: 'Bob',
         imageUrl: '/avatars/bob.png',
+        headerColor: generateRandomRGB(),
         friendsIds: [],
         isFriendOfUser: true, // Bob starts as a friend
       }),
       this.createPersona({
         username: 'Charlie',
         imageUrl: '/avatars/charlie.png',
+        headerColor: generateRandomRGB(),
         friendsIds: [],
         isFriendOfUser: false, // Charlie starts as a stranger
       }),
@@ -358,7 +394,7 @@ export class DiscordDatabase {
 
     // Add a message from each persona
     await Promise.all(
-      personas.map((persona, index) =>
+      personas.map((persona) =>
         this.createMessage({
           content: `Hello! I'm ${persona.username}. Nice to meet you!`,
           groupId: group.id,
@@ -372,6 +408,13 @@ export class DiscordDatabase {
       personas,
       directMessages,
     };
+  }
+
+  async updatePersonaHeaderColor(personaId: string, headerColor: string) {
+    return this.client.persona.update({
+      where: { id: personaId },
+      data: { headerColor },
+    });
   }
 }
 

@@ -51,7 +51,7 @@ interface SideBarProps {
 
 export function SideBar({ selectedServer, onServerSelect }: SideBarProps) {
   return (
-    <aside className="w-18 max-w-18 mt-[-1px]">
+    <aside className="w-18 max-w-18 mt-[-1px] h-full flex flex-col">
       {/* Top Nav Button is above the rest. Must stay at top of the page. */}
       <div className="flex flex-col items-center gap-[7px] px-2">
         <NavButton ariaLabel="Timeline" variant="primary" className="flex items-center justify-center">
@@ -62,7 +62,7 @@ export function SideBar({ selectedServer, onServerSelect }: SideBarProps) {
         <div className="w-8 h-px bg-[var(--header-border)] " />
       </div>
 
-      <nav className="h-full flex flex-col items-center gap-[7px] py-[7px] px-2">
+      <nav className="flex-1 flex flex-col items-center gap-[7px] py-[7px] px-2 overflow-y-auto">
         {servers.map((server) => (
           <ServerButton
             key={server.id}

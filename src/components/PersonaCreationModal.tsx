@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { Settings } from 'lucide-react';
+import { Settings, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+// Removed direct import of generateImage - now using API route
 
 interface PersonaCreationModalProps {
   onPersonaCreated?: () => void;
@@ -24,6 +25,7 @@ export function PersonaCreationModal({ onPersonaCreated }: PersonaCreationModalP
   const [username, setUsername] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
   const handleCreatePersona = async () => {
     if (!username.trim()) return;
@@ -60,6 +62,78 @@ export function PersonaCreationModal({ onPersonaCreated }: PersonaCreationModalP
       console.error('Failed to create persona:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGenerateImage = async () => {
+    if (!username.trim()) {
+      alert('Please enter a username first to generate a personalized image');
+      return;
+    }
+
+    setIsGeneratingImage(true);
+    try {
+      const response = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: 'anime girl orange hair smug headshot',
+          options: {
+            width: 512,
+            height: 512,
+            steps: 16,
+            CFGScale: 1,
+            model: 'runware:97@3',
+            outputFormat: 'WEBP',
+            scheduler: 'Default',
+            includeCost: true,
+            checkNSFW: true,
+            outputType: ['URL'],
+            outputQuality: 85,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('API Error Response:', errorData);
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      if (result.image) {
+        setImageUrl(result.image);
+        console.log('Generated image:', result);
+      } else {
+        throw new Error('No image URL returned from API');
+      }
+    } catch (error) {
+      console.error('Failed to generate image:', error);
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to generate image';
+      if (error instanceof Error) {
+        if (error.message.includes('RUNWARE_API_KEY')) {
+          errorMessage = 'Runware API key not configured. Please check your environment variables.';
+        } else if (error.message.includes('HTTP 401')) {
+          errorMessage = 'Invalid Runware API key. Please check your API key.';
+        } else if (error.message.includes('HTTP 429')) {
+          errorMessage = 'Rate limit exceeded. Please try again later.';
+        } else if (error.message.includes('HTTP 402')) {
+          errorMessage = 'Insufficient credits. Please add credits to your Runware account.';
+        } else if (error.message.includes('No image URL')) {
+          errorMessage = 'Image generation succeeded but no image URL was returned.';
+        } else {
+          errorMessage = `Image generation failed: ${error.message}`;
+        }
+      }
+      
+      alert(`${errorMessage}\n\nPlease try again or enter a URL manually.`);
+    } finally {
+      setIsGeneratingImage(false);
     }
   };
 
@@ -104,14 +178,26 @@ export function PersonaCreationModal({ onPersonaCreated }: PersonaCreationModalP
             <label htmlFor="imageUrl" className="text-right text-sm font-medium">
               Image URL
             </label>
-            <Input
-              id="imageUrl"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="https://example.com/avatar.png"
-              className="col-span-3"
-            />
+            <div className="col-span-3 flex gap-2">
+              <Input
+                id="imageUrl"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="https://example.com/avatar.png"
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={handleGenerateImage}
+                disabled={isGeneratingImage || isLoading}
+                title="Generate AI Image"
+              >
+                <Wand2 className={`h-4 w-4 ${isGeneratingImage ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
           </div>
           
           {/* Image Preview */}
@@ -149,7 +235,7 @@ export function PersonaCreationModal({ onPersonaCreated }: PersonaCreationModalP
           <Button
             type="button"
             onClick={handleCreatePersona}
-            disabled={!username.trim() || isLoading}
+            disabled={!username.trim() || isLoading || isGeneratingImage}
           >
             {isLoading ? 'Creating...' : 'Create Persona'}
           </Button>

@@ -31,6 +31,7 @@ model Persona {
   id               String   @id @default(cuid())
   username         String   @unique
   imageUrl         String?  // Avatar image URL
+  headerColor      String?  // RGB color for header (format: "rgb(r,g,b)")
   friendsIds       String[] // Array of persona IDs that are friends
   isFriendOfUser   Boolean  @default(false) // Whether this persona is friends with the main user
   createdAt        DateTime @default(now())

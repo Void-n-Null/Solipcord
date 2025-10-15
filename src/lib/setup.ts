@@ -1,4 +1,4 @@
-import { db } from './database';
+import { db, prisma } from './database';
 
 /**
  * Database setup utilities for initializing a new instance
@@ -18,9 +18,9 @@ export async function setupNewInstance(userData: {
     
     console.log('✅ Instance setup complete!');
     console.log(`👤 User: ${user.username}`);
-    console.log(`🏠 Server: ${defaultData.server.name}`);
-    console.log(`💬 Channel: ${defaultData.channel.name}`);
+    console.log(`🏠 Group: ${defaultData.group.name}`);
     console.log(`🤖 Personas: ${defaultData.personas.length} AI personas created`);
+    console.log(`💬 Direct Messages: ${defaultData.directMessages.length} DM channels created`);
     
     return {
       user,
@@ -39,7 +39,7 @@ export async function resetInstance(userId: string) {
     console.log('⚠️  Resetting instance...');
     
     // Delete in correct order to respect foreign key constraints
-    await db.prisma.message.deleteMany({
+    await prisma.message.deleteMany({
       where: {
         OR: [
           { userId: userId },
@@ -48,13 +48,13 @@ export async function resetInstance(userId: string) {
       },
     });
     
-    await db.prisma.directMessage.deleteMany();
+    await prisma.directMessage.deleteMany();
     
-    await db.prisma.group.deleteMany();
+    await prisma.group.deleteMany();
     
-    await db.prisma.persona.deleteMany();
+    await prisma.persona.deleteMany();
     
-    await db.prisma.user.delete({
+    await prisma.user.delete({
       where: { id: userId },
     });
     
@@ -74,8 +74,8 @@ export async function checkInstanceHealth(userId: string) {
       return { healthy: false, message: 'User not found' };
     }
     
-    const groups = await db.prisma.group.findMany();
-    const directMessages = await db.prisma.directMessage.findMany();
+    const groups = await prisma.group.findMany();
+    const directMessages = await prisma.directMessage.findMany();
     const personas = await db.getAllPersonas();
     
     return {

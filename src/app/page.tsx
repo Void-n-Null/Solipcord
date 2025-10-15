@@ -9,9 +9,9 @@ export default function Home() {
   const [selectedServer, setSelectedServer] = useState<number>(0);
   
   return (
-    <div className="min-h-screen bg-[var(--background)] flex flex-col">
+    <div className="h-screen bg-[var(--background)] flex flex-col overflow-hidden">
       <TopBar />
-      <div className="flex flex-1">
+      <div className="flex flex-1 min-h-0">
         <SideBar 
           selectedServer={selectedServer} 
           onServerSelect={setSelectedServer} 
