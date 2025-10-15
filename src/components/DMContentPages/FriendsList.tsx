@@ -134,9 +134,9 @@ export function FriendsList() {
                         <Image
                           src={friend.imageUrl || '/avatars/default.png'}
                           alt={friend.username}
-                          className="w-8 h-8 rounded-full"
-                          width={32}
-                          height={32}
+                          className="w-8 h-8 rounded-full object-cover"
+                          width={128}
+                          height={128}
                           onError={(e) => {
                             e.currentTarget.src = '/avatars/default.png';
                           }}
