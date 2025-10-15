@@ -177,34 +177,31 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
           /* Messages Area */
           <div className="flex-1 flex flex-col h-full justify-end">
             {/* Persona Information Block - Always visible */}
-            <div className="flex items-start gap-4 p-6">
+            <div className="flex items-start gap-4 p-6 px-3 pb-[10px]">
               {/* Profile Picture */}
-              <div className="relative">
+              <div className="relative pl-1">
                 <Image
                   src={dm.persona.imageUrl || '/avatars/default.png'}
                   alt={dm.persona.username}
                   className="w-20 h-20 rounded-full object-cover"
-                  width={80}
-                  height={80}
+                  width={128}
+                  height={128}
                   onError={(e) => {
                     e.currentTarget.src = '/avatars/default.png';
                   }}
                 />
-              </div>
-              
-              {/* Persona Details */}
-              <div className="flex-1">
+
                 {/* Display Name */}
-                <h2 className="text-2xl font-bold text-white mb-1">{dm.persona.username}</h2>
+                <h2 className="text-[30px] font-bold text-white mb-1 mt-2">{dm.persona.username}</h2>
                 
                 {/* Username */}
-                <p className="text-[#b9bbbe] text-sm mb-3">{dm.persona.username}</p>
-                
-                {/* DM History Message */}
-                <p className="text-[#b9bbbe] text-sm mb-3">
-                  This is the beginning of your direct message history with {dm.persona.username}.
+                <p className="text-white text-2xl mb-3">{dm.persona.username}</p>
+
+                                {/* DM History Message */}
+                                <p className="text-neutral-200 text-md mb-3">
+                  This is the beginning of your direct message history with <b>{dm.persona.username}</b>.
                 </p>
-                
+
                 {/* Mutual Server and Actions */}
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 bg-green-600 rounded-sm flex items-center justify-center">
@@ -228,38 +225,79 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
                   </div>
                 </div>
               </div>
+    
             </div>
 
             {/* Messages Container */}
-            <div className="overflow-y-auto p-4 space-y-4 max-h-96">
-              {messages.map((msg) => (
-                <div key={msg.id} className="flex gap-3">
-                  <Image
-                    src={msg.persona?.imageUrl || '/avatars/default.png'}
-                    alt={msg.persona?.username || 'User'}
-                    className="w-10 h-10 rounded-full object-cover"
-                    width={40}
-                    height={40}
-                    onError={(e) => {
-                      e.currentTarget.src = '/avatars/default.png';
-                    }}
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-baseline gap-2 mb-1">
-                      <span className="text-white font-semibold">
-                        {msg.persona?.username || 'You'}
-                      </span>
-                      <span className="text-[#b9bbbe] text-xs">
-                        {new Date(msg.createdAt).toLocaleTimeString([], { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
-                      </span>
+            <div className="overflow-y-auto p-4 space-y-1 max-h-96">
+              {messages.length > 0 && (
+                <div className="flex items-center justify-center">
+                  <div className="flex items-center w-full">
+                    <div className="flex-1 h-px bg-[#404040]"></div>
+                    <div className="px-4 text-[#b9bbbe] text-sm">
+                      {new Date(messages[0].createdAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
                     </div>
-                    <p className="text-[#dcddde]">{msg.content}</p>
+                    <div className="flex-1 h-px bg-[#404040]"></div>
                   </div>
                 </div>
-              ))}
+              )}
+              
+              {messages.map((msg, index) => {
+                const currentDate = new Date(msg.createdAt).toDateString();
+                const previousDate = index > 0 ? new Date(messages[index - 1].createdAt).toDateString() : null;
+                const showDateDivider = previousDate && currentDate !== previousDate;
+
+                return (
+                  <div key={msg.id}>
+                    {showDateDivider && (
+                      <div className="flex items-center justify-center py-4">
+                        <div className="flex items-center w-full">
+                          <div className="flex-1 h-px bg-[#404040]"></div>
+                          <div className="px-4 text-[#b9bbbe] text-sm">
+                            {new Date(msg.createdAt).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </div>
+                          <div className="flex-1 h-px bg-[#404040]"></div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="flex gap-3">
+                      <Image
+                        src={msg.persona?.imageUrl || '/avatars/default.png'}
+                        alt={msg.persona?.username || 'User'}
+                        className="w-10 h-10 rounded-full object-cover"
+                        width={40}
+                        height={40}
+                        onError={(e) => {
+                          e.currentTarget.src = '/avatars/default.png';
+                        }}
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-baseline gap-2 mb-1">
+                          <span className="text-white font-semibold">
+                            {msg.persona?.username || 'You'}
+                          </span>
+                          <span className="text-[#b9bbbe] text-xs">
+                            {new Date(msg.createdAt).toLocaleTimeString([], { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </span>
+                        </div>
+                        <p className="text-[#dcddde]">{msg.content}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
               <div ref={messagesEndRef} />
             </div>
           </div>
