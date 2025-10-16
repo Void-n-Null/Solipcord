@@ -4,7 +4,6 @@ import { TopBar } from "../components/TopBar";
 import { SideBar } from "../components/SideBar";
 import { ContentArea } from "../components/ContentArea";
 
-
 export default function Home() {
   const [selectedServer, setSelectedServer] = useState<number>(0);
   

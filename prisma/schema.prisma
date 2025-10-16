@@ -46,10 +46,11 @@ model Persona {
 
 // Group chats
 model Group {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  name            String
+  participantIds  String[] // Array of persona IDs that are participants
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
   
   // Relations
   messages  Message[]

@@ -54,10 +54,24 @@ export async function GET(request: NextRequest) {
       }
       return NextResponse.json(user);
     } else {
-      return NextResponse.json(
-        { error: 'Either id or username is required' },
-        { status: 400 }
-      );
+      // No query params provided - return the current (only) user
+      const users = await db.getAllUsers?.();
+      
+      if (!users || users.length === 0) {
+        return NextResponse.json(
+          { error: 'No user found. Please set up the app first.' },
+          { status: 404 }
+        );
+      }
+
+      // Return the first (and only) user
+      const user = users[0];
+      return NextResponse.json({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar,
+      });
     }
   } catch (error) {
     console.error('Failed to fetch user:', error);

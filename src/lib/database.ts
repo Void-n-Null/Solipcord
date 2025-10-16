@@ -1,5 +1,6 @@
 import { PrismaClient } from '@/generated/prisma';
 
+const overrideDisablePrismaLogs = true;
 // Global Prisma client instance
 declare global {
   var __prisma: PrismaClient | undefined;
@@ -7,7 +8,9 @@ declare global {
 
 // Create Prisma client instance
 export const prisma = globalThis.__prisma || new PrismaClient({
-  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+  log: (process.env.ENABLE_PRISMA_LOGS === 'true' || !overrideDisablePrismaLogs)
+    ? ['query', 'error', 'warn'] 
+    : ['error'],
 });
 
 // In development, store the client globally to prevent multiple instances
@@ -50,6 +53,10 @@ export class DiscordDatabase {
     });
   }
 
+  async getAllUsers() {
+    return this.client.user.findMany();
+  }
+
   // Persona operations
   async createPersona(data: {
     username: string;
@@ -88,9 +95,52 @@ export class DiscordDatabase {
   }
 
   // Group operations
-  async createGroup(data: { name: string }) {
+  async createGroup(data: { name: string; participantIds?: string[] }) {
     return this.client.group.create({
-      data,
+      data: {
+        name: data.name,
+        participantIds: data.participantIds || [],
+      },
+      include: {
+        messages: {
+          include: {
+            user: true,
+            persona: true,
+          },
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
+      },
+    });
+  }
+
+  // Create a group chat with multiple personas as participants
+  async createGroupChat(participantIds: string[]) {
+    if (!participantIds || participantIds.length === 0) {
+      throw new Error('At least one participant is required');
+    }
+
+    // Validate that all participants exist
+    const personas = await this.client.persona.findMany({
+      where: { id: { in: participantIds } },
+    });
+
+    if (personas.length !== participantIds.length) {
+      throw new Error('One or more participant personas not found');
+    }
+
+    // Generate a group name from participants
+    const participantNames = personas.map(p => p.username).slice(0, 3).join(', ');
+    const groupName = participantIds.length > 3
+      ? `${participantNames}, +${participantIds.length - 3}`
+      : participantNames;
+
+    return this.client.group.create({
+      data: {
+        name: groupName,
+        participantIds,
+      },
       include: {
         messages: {
           include: {
@@ -438,6 +488,19 @@ export class DiscordDatabase {
     return this.client.persona.update({
       where: { id: personaId },
       data: { headerColor },
+    });
+  }
+
+  // Delete operations
+  async deleteGroup(groupId: string) {
+    return this.client.group.delete({
+      where: { id: groupId },
+    });
+  }
+
+  async deleteDirectMessage(directMessageId: string) {
+    return this.client.directMessage.delete({
+      where: { id: directMessageId },
     });
   }
 }

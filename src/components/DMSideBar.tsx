@@ -1,62 +1,65 @@
 import { DMCategoryButton } from './DMCategoryButton';
-import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import Image from 'next/image';
-import { Persona, DirectMessage } from "@/types/dm";
+import { ChatEntity, getChatDisplayName, getChatImageUrl, isDirectMessage } from "@/types/dm";
 import { StatusIndicator, StatusType } from './StatusIndicator';
 
 interface DMSideBarProps {
   onCategorySelect: (category: string) => void;
   selectedCategory: string | null;
-  onDMSelect?: (dm: DirectMessage) => void;
-  selectedDM?: DirectMessage | null;
+  onChatSelect?: (chat: ChatEntity) => void;
+  selectedChat?: ChatEntity | null;
   refreshTrigger?: number; // Trigger refresh when this changes
 }
 
-export function DMSideBar({ onCategorySelect, selectedCategory, onDMSelect, selectedDM, refreshTrigger }: DMSideBarProps) {
-  const [dms, setDms] = useState<DirectMessage[]>([]);
-  const [loading, setLoading] = useState(true);
+export function DMSideBar({ onCategorySelect, selectedCategory, onChatSelect, selectedChat, refreshTrigger }: DMSideBarProps) {
+  const queryClient = useQueryClient();
 
-  // Fetch DMs from database
-  const fetchDMs = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/direct-messages');
-      if (!response.ok) {
-        throw new Error('Failed to fetch DMs');
+  // Fetch chats using TanStack Query
+  const { data: chats = [] } = useQuery({
+    queryKey: ['chats'],
+    queryFn: async () => {
+      try {
+        // Fetch both DMs and Groups
+        const [dmsResponse, groupsResponse] = await Promise.all([
+          fetch('/api/direct-messages'),
+          fetch('/api/groups'),
+        ]);
+        
+        const dms = dmsResponse.ok ? await dmsResponse.json() : [];
+        const groups = groupsResponse.ok ? await groupsResponse.json() : [];
+        
+        // Combine and sort by most recent
+        const allChats = [...dms, ...groups].sort((a, b) => {
+          const aTime = new Date(a.updatedAt).getTime();
+          const bTime = new Date(b.updatedAt).getTime();
+          return bTime - aTime;
+        });
+        
+        return allChats;
+      } catch (err) {
+        console.error('Error fetching chats:', err);
+        // Fallback to just DMs if groups endpoint doesn't exist yet
+        try {
+          const response = await fetch('/api/direct-messages');
+          if (response.ok) {
+            return await response.json();
+          }
+        } catch (fallbackErr) {
+          console.error('Error fetching DMs:', fallbackErr);
+        }
+        return [];
       }
-      const data = await response.json();
-      setDms(data);
-    } catch (err) {
-      console.error('Error fetching DMs:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+  });
 
-  useEffect(() => {
-    fetchDMs();
-  }, []);
-
-  // Refresh DMs when refreshTrigger changes
+  // Invalidate chats when refreshTrigger changes
   useEffect(() => {
     if (refreshTrigger !== undefined) {
-      fetchDMs();
+      queryClient.invalidateQueries({ queryKey: ['chats'] });
     }
-  }, [refreshTrigger]);
-
-  // Refresh DMs when a new one is created
-  const refreshDMs = async () => {
-    try {
-      const response = await fetch('/api/direct-messages');
-      if (!response.ok) {
-        throw new Error('Failed to fetch DMs');
-      }
-      const data = await response.json();
-      setDms(data);
-    } catch (err) {
-      console.error('Error fetching DMs:', err);
-    }
-  };
+  }, [refreshTrigger, queryClient]);
 
   return (
     <aside className="w-[302px] h-full bg-[var(--background)] rounded-tl-xl flex flex-col">
@@ -86,48 +89,60 @@ export function DMSideBar({ onCategorySelect, selectedCategory, onDMSelect, sele
           />
           </div>
           <div className="w-full h-[0.75px] bg-[var(--header-border)]/75 mt-[13px]"></div>
-          {/* DM List */}
-          {dms.length > 0 && (
+          {/* Chat List (DMs and Groups) */}
+          {chats.length > 0 && (
             <div className="mt-3">
               <div className="text-[13.5px] font-normal text-neutral-400 mb-[6px] px-2 tracking-wide">
                 Direct Messages
               </div>
               <div className="space-y-1 max-h-96 overflow-y-auto">
-                {dms.map((dm) => (
-                  <div
-                    key={dm.id}
-                    className={`flex items-center gap-3 px-2 pt-[4px] pb-[5px] rounded-md cursor-pointer transition-colors ${
-                      selectedDM?.id === dm.id 
-                        ? 'hover:bg-[#1d1d1e]  bg-[#2c2c30] text-white' 
-                        : 'hover:bg-[#1d1d1e] text-[var(--header-text)]'
-                    }`}
-                    onClick={() => onDMSelect?.(dm)}
-                  >
-                    {/* Avatar */}
-                    <div className="relative">
-                      <Image
-                        src={dm.persona.imageUrl || '/avatars/default.png'}
-                        alt={dm.persona.username}
-                        className="w-8 h-8 rounded-full object-cover"
-                        width={32}
-                        height={32}
-                        onError={(e) => {
-                          e.currentTarget.src = '/avatars/default.png';
-                        }}
-                      />
-                      <StatusIndicator status={StatusType.OFFLINE} size={14} />
-                    </div>
-                    
-                    {/* Username */}
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[16px] font-medium truncate">
-                        {dm.persona.username.length > 28 
-                          ? `${dm.persona.username.substring(0, 29)}...` 
-                          : dm.persona.username}
+                {chats.map((chat: ChatEntity) => {
+                  const chatName = getChatDisplayName(chat);
+                  const chatImageUrl = getChatImageUrl(chat);
+                  const isGroup = !isDirectMessage(chat);
+                  
+                  return (
+                    <div
+                      key={chat.id}
+                      className={`flex items-center gap-3 px-2 pt-[4px] pb-[5px] rounded-md cursor-pointer transition-colors ${
+                        selectedChat?.id === chat.id 
+                          ? 'hover:bg-[#1d1d1e]  bg-[#2c2c30] text-white' 
+                          : 'hover:bg-[#1d1d1e] text-[var(--header-text)]'
+                      }`}
+                      onClick={() => onChatSelect?.(chat)}
+                    >
+                      {/* Avatar */}
+                      <div className="relative">
+                        {chatImageUrl ? (
+                          <Image
+                            src={chatImageUrl}
+                            alt={chatName}
+                            className="w-8 h-8 rounded-full object-cover"
+                            width={32}
+                            height={32}
+                            onError={(e) => {
+                              e.currentTarget.src = '/avatars/default.png';
+                            }}
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-[#404040] flex items-center justify-center text-xs font-semibold text-white">
+                            {isGroup ? '👥' : '?'}
+                          </div>
+                        )}
+                        <StatusIndicator status={StatusType.OFFLINE} size={14} />
+                      </div>
+                      
+                      {/* Username / Chat Name */}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[16px] font-medium truncate">
+                          {chatName.length > 28 
+                            ? `${chatName.substring(0, 29)}...` 
+                            : chatName}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

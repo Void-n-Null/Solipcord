@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DMHeader } from "../DMHeader";
 import { Input } from "../ui/input";
-import { Search, MoreVertical, UserMinus, Trash2 } from "lucide-react";
+import { Search, MoreVertical, UserMinus, Trash2, Users } from "lucide-react";
 import Image from "next/image";
 import {
   DropdownMenu,
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Persona, DirectMessage } from "@/types/dm";
 import { StatusIndicator, StatusType } from "../StatusIndicator";
+import { GroupChatModal } from "../GroupChatModal";
 
 interface FriendsListProps {
   onDMSelect?: (dm: DirectMessage) => void;
@@ -20,49 +22,25 @@ interface FriendsListProps {
 }
 
 export function FriendsList({ onDMSelect, onDMRefresh }: FriendsListProps) {
-  const [friends, setFriends] = useState<Persona[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [groupChatModalOpen, setGroupChatModalOpen] = useState(false);
+  const queryClient = useQueryClient();
 
-  // Fetch friends from database
-  useEffect(() => {
-    const fetchFriends = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/friends');
-        if (!response.ok) {
-          throw new Error('Failed to fetch friends');
-        }
-        const data = await response.json();
-        setFriends(data);
-      } catch (err) {
-        console.error('Error fetching friends:', err);
-        setError(err instanceof Error ? err.message : 'Unknown error');
-      } finally {
-        setLoading(false);
+  // Fetch friends using TanStack Query
+  const { data: friends = [], isLoading: loading, error } = useQuery({
+    queryKey: ['friends'],
+    queryFn: async () => {
+      const response = await fetch('/api/friends');
+      if (!response.ok) {
+        throw new Error('Failed to fetch friends');
       }
-    };
-
-    fetchFriends();
-  }, []);
+      return (await response.json()) as Persona[];
+    },
+  });
 
   // Refresh friends list when a new persona is created
   const handlePersonaCreated = () => {
-    const fetchFriends = async () => {
-      try {
-        const response = await fetch('/api/friends');
-        if (!response.ok) {
-          throw new Error('Failed to fetch friends');
-        }
-        const data = await response.json();
-        setFriends(data);
-      } catch (err) {
-        console.error('Error fetching friends:', err);
-      }
-    };
-
-    fetchFriends();
+    queryClient.invalidateQueries({ queryKey: ['friends'] });
   };
 
   // Handle unfriend action
@@ -89,7 +67,7 @@ export function FriendsList({ onDMSelect, onDMRefresh }: FriendsListProps) {
       }
 
       // Remove from friends list
-      setFriends(prev => prev.filter(friend => friend.id !== personaId));
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
       // Trigger DM refresh to update sidebar
       if (onDMRefresh) {
         onDMRefresh();
@@ -127,7 +105,7 @@ export function FriendsList({ onDMSelect, onDMRefresh }: FriendsListProps) {
       }
 
       // Remove from friends list
-      setFriends(prev => prev.filter(friend => friend.id !== personaId));
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
       // Trigger DM refresh to update sidebar
       if (onDMRefresh) {
         onDMRefresh();
@@ -189,6 +167,16 @@ export function FriendsList({ onDMSelect, onDMRefresh }: FriendsListProps) {
     }
   };
 
+  // Handle group chat creation
+  const handleGroupChatCreated = (groupId: string) => {
+    console.log('Group chat created:', groupId);
+    // Trigger DM refresh to update sidebar with new group chat
+    if (onDMRefresh) {
+      onDMRefresh();
+    }
+    // Optional: You can navigate to the group chat here if needed
+  };
+
 
   const divider = () => {
     return <div className="h-px bg-[#404040]/40 mx-3 mr-6"></div>;
@@ -227,6 +215,13 @@ export function FriendsList({ onDMSelect, onDMRefresh }: FriendsListProps) {
                 <div className="text-white/90 text-sm font-medium">
                 All friends — {loading ? '...' : friends.length}
                 </div>
+                <button
+                  onClick={() => setGroupChatModalOpen(true)}
+                  className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
+                >
+                  <Users className="w-4 h-4" />
+                  Create Group
+                </button>
               </div>
               
             </div>
@@ -241,7 +236,7 @@ export function FriendsList({ onDMSelect, onDMRefresh }: FriendsListProps) {
             {/* Error state */}
             {error && (
               <div className="text-red-400 text-center py-8">
-                Error: {error}
+                Error: {error instanceof Error ? error.message : 'Unknown error'}
               </div>
             )}
 
@@ -341,6 +336,13 @@ export function FriendsList({ onDMSelect, onDMRefresh }: FriendsListProps) {
           </div>
         </div>
       </div>
+
+      {/* Group Chat Modal */}
+      <GroupChatModal
+        open={groupChatModalOpen}
+        onOpenChange={setGroupChatModalOpen}
+        onGroupChatCreated={handleGroupChatCreated}
+      />
     </div>
   );
 }

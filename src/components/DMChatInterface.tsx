@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import Image from 'next/image';
-import { DirectMessage, MessageWithPersona, Persona } from '@/types/dm';
+import { MessageWithPersona, Persona, ChatEntity, getChatDisplayName, getChatImageUrl, isDirectMessage, getChatPersona } from '@/types/dm';
 import { CharacterProfile } from './CharacterProfile';
 import { StatusIndicator, StatusType } from './StatusIndicator';
 import { ChatMessage } from './ChatMessage';
@@ -10,47 +10,48 @@ import { PartialChatMessage } from './PartialChatMessage';
 import { MessageDateDivider } from './MessageDateDivider';
 import { ChatProfileBlock } from './ChatProfileBlock';
 import { ChatTypingArea } from './ChatTypingArea';
+import { MessageSkeleton } from './MessageSkeleton';
+import { useUser } from '@/hooks/useUser';
 
 interface DMChatInterfaceProps {
-  dm: DirectMessage;
-  onDMRefresh?: () => void;
+  chat: ChatEntity;
+  messages: MessageWithPersona[];
+  loading: boolean;
+  onChatRefresh?: () => void;
   onPersonaUpdate?: (updatedPersona: Persona) => void;
 }
 
-export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInterfaceProps) {
+export function DMChatInterface({ chat, messages, loading, onChatRefresh, onPersonaUpdate }: DMChatInterfaceProps) {
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<MessageWithPersona[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { user } = useUser();
+
+  const isDM = isDirectMessage(chat);
+  const persona = getChatPersona(chat);
+  const chatName = getChatDisplayName(chat);
+  const chatImageUrl = getChatImageUrl(chat);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
   };
 
-  // Fetch messages for this DM
+  // Fetch initial messages for this chat (only on mount)
   useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/messages?directMessageId=${dm.id}&limit=50`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch messages');
-        }
-        const data = await response.json();
-        setMessages(data);
-      } catch (error) {
-        console.error('Error fetching messages:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Show loading state immediately when chat changes
+    setIsLoadingMessages(true);
+  }, [chat.id]);
 
-    fetchMessages();
-  }, [dm.id]);
-
-  useEffect(() => {
+  useLayoutEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Clear loading state once parent loading is done
+  useEffect(() => {
+    if (!loading) {
+      setIsLoadingMessages(false);
+    }
+  }, [loading]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +65,9 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
         },
         body: JSON.stringify({
           content: message,
-          directMessageId: dm.id,
+          directMessageId: isDM ? chat.id : undefined,
+          groupId: !isDM ? chat.id : undefined,
+          userId: user?.id,
         }),
       });
 
@@ -72,13 +75,13 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
         throw new Error('Failed to send message');
       }
 
-      const newMessage = await response.json();
-      setMessages(prev => [...prev, newMessage]);
+      // Don't add to messages here - let the WebSocket deliver it!
+      // This eliminates duplicates and ensures single source of truth
       setMessage('');
       
-      // Trigger DM refresh to update sidebar ordering
-      if (onDMRefresh) {
-        onDMRefresh();
+      // Trigger chat refresh to update sidebar ordering
+      if (onChatRefresh) {
+        onChatRefresh();
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -86,7 +89,8 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
   };
 
   const handleRemoveFriend = async () => {
-    if (!confirm(`Are you sure you want to remove ${dm.persona.username} as a friend?`)) {
+    if (!persona) return;
+    if (!confirm(`Are you sure you want to remove ${persona.username} as a friend?`)) {
       return;
     }
 
@@ -97,7 +101,7 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          personaId: dm.persona.id,
+          personaId: persona.id,
           action: 'unfriend',
         }),
       });
@@ -106,14 +110,14 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
         throw new Error('Failed to remove friend');
       }
 
-      console.log(`Removed ${dm.persona.username} as friend`);
-      // Trigger DM refresh to update sidebar
-      if (onDMRefresh) {
-        onDMRefresh();
+      console.log(`Removed ${persona.username} as friend`);
+      // Trigger chat refresh to update sidebar
+      if (onChatRefresh) {
+        onChatRefresh();
       }
     } catch (error) {
       console.error('Error removing friend:', error);
-      alert(`Failed to remove ${dm.persona.username} as friend. Please try again.`);
+      alert(`Failed to remove ${persona.username} as friend. Please try again.`);
     }
   };
 
@@ -128,14 +132,15 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
       }
 
       // Remove message from local state
-      setMessages(prev => prev.filter(msg => msg.id !== messageId));
+      // setMessages(prev => prev.filter(msg => msg.id !== messageId)); // This line is removed as messages are now props
     } catch (error) {
       console.error('Error deleting message:', error);
     }
   };
 
   const handleBlock = async () => {
-    if (!confirm(`Are you sure you want to block ${dm.persona.username}?`)) {
+    if (!persona) return;
+    if (!confirm(`Are you sure you want to block ${persona.username}?`)) {
       return;
     }
 
@@ -146,7 +151,7 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          personaId: dm.persona.id,
+          personaId: persona.id,
           action: 'erase',
         }),
       });
@@ -155,16 +160,18 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
         throw new Error('Failed to block persona');
       }
 
-      console.log(`Blocked ${dm.persona.username}`);
-      // Trigger DM refresh to update sidebar
-      if (onDMRefresh) {
-        onDMRefresh();
+      console.log(`Blocked ${persona.username}`);
+      // Trigger chat refresh to update sidebar
+      if (onChatRefresh) {
+        onChatRefresh();
       }
     } catch (error) {
       console.error('Error blocking persona:', error);
-      alert(`Failed to block ${dm.persona.username}. Please try again.`);
+      alert(`Failed to block ${persona.username}. Please try again.`);
     }
   };
+
+  const effectiveLoading = isLoadingMessages || loading;
 
   return (
     <div className="flex-1 flex flex-col h-full">
@@ -172,19 +179,25 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
       <div className="h-[48px] border-b border-[#404040] flex items-center px-4 bg-[#1a1a1e]">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <Image
-              src={dm.persona.imageUrl || '/avatars/default.png'}
-              alt={dm.persona.username}
-              className="w-6 h-6 rounded-full object-cover"
-              width={24}
-              height={24}
-              onError={(e) => {
-                e.currentTarget.src = '/avatars/default.png';
-              }}
-            />
+            {chatImageUrl ? (
+              <Image
+                src={chatImageUrl}
+                alt={chatName}
+                className="w-6 h-6 rounded-full object-cover"
+                width={24}
+                height={24}
+                onError={(e) => {
+                  e.currentTarget.src = '/avatars/default.png';
+                }}
+              />
+            ) : (
+              <div className="w-6 h-6 rounded-full bg-[#404040] flex items-center justify-center text-xs font-semibold">
+                👥
+              </div>
+            )}
             <StatusIndicator status={StatusType.OFFLINE} size={10} />
           </div>
-          <div className="text-white font-semibold">{dm.persona.username}</div>
+          <div className="text-white font-semibold">{chatName}</div>
         </div>
       </div>
 
@@ -194,10 +207,10 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
         <div className="flex-1 flex flex-col h-full">
           {/* Main Content */}
           <div className="flex-1 bg-[#1a1a1e] overflow-hidden flex flex-col">
-        {loading ? (
+        {effectiveLoading ? (
           /* Loading State */
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-[#b9bbbe]">Loading messages...</div>
+          <div className="flex-1 flex flex-col justify-end min-h-0">
+            <MessageSkeleton />
           </div>
         ) : (
           /* Messages Area */
@@ -206,13 +219,13 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
             
             <div className="overflow-y-auto px-4">
               
-              {/* Persona Information Block - Always visible at top */}
+              {/* Chat Profile Block - Shown for both DMs and Groups */}
               <div className="pb-[10px]">
-              <ChatProfileBlock
-                persona={dm.persona}
-                onRemoveFriend={handleRemoveFriend}
-                onBlock={handleBlock}
-              />
+                <ChatProfileBlock
+                  data={chat}
+                  onRemoveFriend={isDM ? handleRemoveFriend : undefined}
+                  onBlock={isDM ? handleBlock : undefined}
+                />
               </div>
 
               {messages.length > 0 && (
@@ -265,17 +278,19 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
             message={message}
             onMessageChange={setMessage}
             onSendMessage={handleSendMessage}
-            personaUsername={dm.persona.username}
+            personaUsername={chatName}
           />
         </div>
 
-        {/* Character Profile Sidebar */}
-        <CharacterProfile 
-          persona={dm.persona}
-          onRemoveFriend={handleRemoveFriend}
-          onBlock={handleBlock}
-          onPersonaUpdate={onPersonaUpdate}
-        />
+        {/* Character Profile Sidebar - Only for DMs */}
+        {isDM && persona && (
+          <CharacterProfile 
+            persona={persona}
+            onRemoveFriend={handleRemoveFriend}
+            onBlock={handleBlock}
+            onPersonaUpdate={onPersonaUpdate}
+          />
+        )}
       </div>
     </div>
   );

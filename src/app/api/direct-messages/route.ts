@@ -14,6 +14,19 @@ export async function POST(request: NextRequest) {
     }
 
     const directMessage = await db.createDirectMessage(personaId);
+    
+    // Notify the DM listener service about the new DM conversation
+    try {
+      const { dmListenerService } = await import('@/services/dm-listener.service');
+      const persona = await db.getPersonaById(personaId);
+      if (persona) {
+        dmListenerService.addDMListener(directMessage.id, personaId, persona.username);
+      }
+    } catch (error) {
+      console.error('Failed to add DM listener:', error);
+      // Don't fail the request if listener setup fails
+    }
+    
     return NextResponse.json(directMessage, { status: 201 });
   } catch (error) {
     console.error('Failed to create direct message:', error);
@@ -32,6 +45,38 @@ export async function GET() {
     console.error('Failed to fetch direct messages:', error);
     return NextResponse.json(
       { error: 'Failed to fetch direct messages' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const directMessageId = searchParams.get('id');
+
+    if (!directMessageId) {
+      return NextResponse.json(
+        { error: 'Direct Message ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Notify the DM listener service about the DM deletion
+    try {
+      const { dmListenerService } = await import('@/services/dm-listener.service');
+      dmListenerService.stopListeningToDM(directMessageId);
+    } catch (error) {
+      console.error('Failed to stop DM listener:', error);
+      // Don't fail the request if listener cleanup fails
+    }
+
+    await db.deleteDirectMessage(directMessageId);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Failed to delete direct message:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete direct message' },
       { status: 500 }
     );
   }

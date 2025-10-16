@@ -39,3 +39,35 @@ export async function GET() {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const groupId = searchParams.get('id');
+
+    if (!groupId) {
+      return NextResponse.json(
+        { error: 'Group ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Notify the group listener service about the group deletion
+    try {
+      const { groupChatListenerService } = await import('@/services/group-chat-listener.service');
+      groupChatListenerService.stopListeningToGroup(groupId);
+    } catch (error) {
+      console.error('Failed to stop group listener:', error);
+      // Don't fail the request if listener cleanup fails
+    }
+
+    await db.deleteGroup(groupId);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Failed to delete group:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete group' },
+      { status: 500 }
+    );
+  }
+}

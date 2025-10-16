@@ -1,51 +1,134 @@
+'use client';
+
 import { DMSideBar } from "./DMSideBar";
 import { DMContent } from "./DMContent";
 import { FriendsList, Nitro, Shop } from "./DMContentPages";
 import { DMChatInterface } from "./DMChatInterface";
-import { useState } from "react";
-import { DirectMessage, Persona } from "@/types/dm";
+import { useState, useCallback, useEffect } from "react";
+import { ChatEntity, Persona, MessageWithPersona, isDirectMessage } from "@/types/dm";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 export function ContentArea() {
   const [selectedPage, setSelectedPage] = useState<string | null>(null);
-  const [selectedDM, setSelectedDM] = useState<DirectMessage | null>(null);
+  const [selectedChat, setSelectedChat] = useState<ChatEntity | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [messages, setMessages] = useState<MessageWithPersona[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const handleDMSelect = (dm: DirectMessage) => {
-    setSelectedDM(dm);
-    setSelectedPage(null); // Clear page selection when DM is selected
+  // Fetch initial messages when chat is selected
+  useEffect(() => {
+    if (!selectedChat) {
+      setMessages([]);
+      return;
+    }
+
+    const fetchMessages = async () => {
+      try {
+        setLoading(true);
+        const isDM = isDirectMessage(selectedChat);
+        const query = isDM 
+          ? `directMessageId=${selectedChat.id}&limit=50`
+          : `groupId=${selectedChat.id}&limit=50`;
+        
+        const response = await fetch(`/api/messages?${query}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch messages');
+        }
+        const data = await response.json();
+        setMessages(data);
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMessages();
+  }, [selectedChat]);
+
+  // Handle new messages from WebSocket (stable callback reference)
+  const handleWebSocketMessage = useCallback((newMessage: MessageWithPersona) => {
+    setMessages((prev) => {
+      // Check if message already exists (to avoid duplicates)
+      if (prev.some((msg) => msg.id === newMessage.id)) {
+        return prev;
+      }
+      return [...prev, newMessage];
+    });
+  }, []);
+
+  // Handle message deletion from WebSocket
+  const handleWebSocketMessageDeleted = useCallback((messageId: string) => {
+    setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+  }, []);
+
+  // WebSocket connection - depends on selected chat (DM or Group)
+  // This stays connected to the same DM/Group until it changes
+  // The hook handles server-side checks internally
+  const isDMChat = selectedChat && isDirectMessage(selectedChat);
+  useWebSocket({
+    dmId: isDMChat ? selectedChat.id : undefined,
+    groupId: !isDMChat && selectedChat ? selectedChat.id : undefined,
+    onMessageReceived: handleWebSocketMessage,
+    onMessageDeleted: handleWebSocketMessageDeleted,
+    onConnected: () => {
+      console.log('[ContentArea] WebSocket connected to chat:', selectedChat?.id);
+    },
+    onDisconnected: () => {
+      console.log('[ContentArea] WebSocket disconnected from chat:', selectedChat?.id);
+    },
+  });
+
+  const handleChatSelect = (chat: ChatEntity) => {
+    // Only trigger loading if switching to a different chat
+    if (selectedChat?.id !== chat.id) {
+      setLoading(true);
+      setSelectedChat(chat);
+      setSelectedPage(null); // Clear page selection when chat is selected
+      setMessages([]); // Clear messages when switching chats
+    }
   };
 
   const handleCategorySelect = (category: string) => {
     setSelectedPage(category);
-    setSelectedDM(null); // Clear DM selection when category is selected
+    setSelectedChat(null); // Clear chat selection when category is selected
+    setMessages([]); // Clear messages
   };
 
-  const triggerDMRefresh = () => {
+  const triggerChatRefresh = () => {
     setRefreshTrigger(prev => prev + 1);
   };
 
   const handlePersonaUpdate = (updatedPersona: Persona) => {
-    // Update the selectedDM if it contains the updated persona
-    if (selectedDM && selectedDM.persona.id === updatedPersona.id) {
-      setSelectedDM({
-        ...selectedDM,
+    // Update the selectedChat if it's a DM containing the updated persona
+    if (selectedChat && isDirectMessage(selectedChat) && selectedChat.persona.id === updatedPersona.id) {
+      setSelectedChat({
+        ...selectedChat,
         persona: updatedPersona,
       });
     }
     // Trigger a refresh to update any other components that might show this persona
-    triggerDMRefresh();
+    triggerChatRefresh();
   };
 
   const renderPage = () => {
-    // If a DM is selected, show DM chat interface
-    if (selectedDM) {
-      return <DMChatInterface dm={selectedDM} onDMRefresh={triggerDMRefresh} onPersonaUpdate={handlePersonaUpdate} />;
+    // If a chat is selected, show chat interface
+    if (selectedChat) {
+      return (
+        <DMChatInterface 
+          chat={selectedChat} 
+          messages={messages}
+          loading={loading}
+          onChatRefresh={triggerChatRefresh} 
+          onPersonaUpdate={handlePersonaUpdate} 
+        />
+      );
     }
 
     // Otherwise show category pages
     switch (selectedPage) {
       case 'friends':
-        return <FriendsList onDMSelect={handleDMSelect} onDMRefresh={triggerDMRefresh} />;
+        return <FriendsList onDMSelect={handleChatSelect} onDMRefresh={triggerChatRefresh} />;
       case 'nitro':
         return <Nitro />;
       case 'shop':
@@ -76,8 +159,8 @@ export function ContentArea() {
         <DMSideBar 
           onCategorySelect={handleCategorySelect} 
           selectedCategory={selectedPage} 
-          onDMSelect={handleDMSelect}
-          selectedDM={selectedDM}
+          onChatSelect={handleChatSelect}
+          selectedChat={selectedChat}
           refreshTrigger={refreshTrigger}
         />
         <DMContent>

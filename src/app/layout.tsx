@@ -4,6 +4,7 @@ import { Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { QueryProvider } from "@/providers/QueryProvider";
 
 const ggSans = localFont({
   variable: "--font-gg-sans",
@@ -50,10 +51,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${ggSans.variable} ${geistMono.variable} antialiased`}>
-        <ThemeProvider>
-          {children}
-          <ThemeToggle />
-        </ThemeProvider>
+        <QueryProvider>
+          <ThemeProvider>
+            {children}
+            <ThemeToggle />
+          </ThemeProvider>
+        </QueryProvider>
       </body>
     </html>
   );

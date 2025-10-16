@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/database';
+import { messageService } from '@/services/message.service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,8 +13,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const message = await db.createMessage({
-      content: content.trim(),
+    const message = await messageService.createMessage({
+      content,
       userId,
       personaId,
       groupId,
@@ -24,8 +24,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(message, { status: 201 });
   } catch (error) {
     console.error('Failed to create message:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create message';
     return NextResponse.json(
-      { error: 'Failed to create message' },
+      { error: errorMessage },
       { status: 500 }
     );
   }
@@ -37,12 +38,13 @@ export async function GET(request: NextRequest) {
     const groupId = searchParams.get('groupId');
     const directMessageId = searchParams.get('directMessageId');
     const limit = parseInt(searchParams.get('limit') || '50');
+    const offset = parseInt(searchParams.get('offset') || '0');
 
     let messages;
     if (groupId) {
-      messages = await db.getMessagesByGroup(groupId, limit);
+      messages = await messageService.getMessagesByGroupId(groupId, { limit, offset });
     } else if (directMessageId) {
-      messages = await db.getMessagesByDirectMessage(directMessageId, limit);
+      messages = await messageService.getMessagesByDirectMessageId(directMessageId, { limit, offset });
     } else {
       return NextResponse.json(
         { error: 'Either groupId or directMessageId is required' },
@@ -53,8 +55,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(messages);
   } catch (error) {
     console.error('Failed to fetch messages:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch messages';
     return NextResponse.json(
-      { error: 'Failed to fetch messages' },
+      { error: errorMessage },
       { status: 500 }
     );
   }
