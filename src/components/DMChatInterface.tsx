@@ -239,7 +239,7 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
                 })();
 
                 return (
-                  <div key={msg.id} className={!isGroupedMessage ? 'mt-4' : ''}>
+                  <div key={msg.id} className={!isGroupedMessage && !showDateDivider && index !== 0 ? 'mt-4' : ''}>
                     {showDateDivider && (
                       <MessageDateDivider date={new Date(msg.createdAt)} />
                     )}
