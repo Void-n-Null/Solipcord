@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { Settings, Wand2 } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -24,22 +25,19 @@ export function PersonaCreationModal({ onPersonaCreated }: PersonaCreationModalP
   const [open, setOpen] = useState(false);
   const [username, setUsername] = useState('');
   const [imageUrl, setImageUrl] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const queryClient = useQueryClient();
 
-  const handleCreatePersona = async () => {
-    if (!username.trim()) return;
-    
-    setIsLoading(true);
-    try {
+  const createPersonaMutation = useMutation({
+    mutationFn: async (data: { username: string; imageUrl?: string }) => {
       const response = await fetch('/api/personas', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username: username.trim(),
-          imageUrl: imageUrl.trim() || undefined,
+          username: data.username,
+          imageUrl: data.imageUrl || undefined,
           isFriendOfUser: true,
         }),
       });
@@ -48,8 +46,13 @@ export function PersonaCreationModal({ onPersonaCreated }: PersonaCreationModalP
         throw new Error('Failed to create persona');
       }
 
-      const persona = await response.json();
+      return await response.json();
+    },
+    onSuccess: (persona) => {
       console.log('Created persona:', persona);
+      
+      // Invalidate personas queries to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['personas'] });
       
       // Reset form
       setUsername('');
@@ -58,11 +61,18 @@ export function PersonaCreationModal({ onPersonaCreated }: PersonaCreationModalP
       
       // Notify parent component
       onPersonaCreated?.();
-    } catch (error) {
+    },
+    onError: (error) => {
       console.error('Failed to create persona:', error);
-    } finally {
-      setIsLoading(false);
-    }
+    },
+  });
+
+  const handleCreatePersona = async () => {
+    if (!username.trim()) return;
+    await createPersonaMutation.mutateAsync({
+      username: username.trim(),
+      imageUrl: imageUrl.trim(),
+    });
   };
 
   const handleGenerateImage = async () => {
@@ -138,7 +148,7 @@ export function PersonaCreationModal({ onPersonaCreated }: PersonaCreationModalP
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !isLoading) {
+    if (e.key === 'Enter' && !createPersonaMutation.isPending) {
       handleCreatePersona();
     }
   };
@@ -192,7 +202,7 @@ export function PersonaCreationModal({ onPersonaCreated }: PersonaCreationModalP
                 variant="outline"
                 size="icon"
                 onClick={handleGenerateImage}
-                disabled={isGeneratingImage || isLoading}
+                disabled={isGeneratingImage || createPersonaMutation.isPending}
                 title="Generate AI Image"
               >
                 <Wand2 className={`h-4 w-4 ${isGeneratingImage ? 'animate-spin' : ''}`} />
@@ -228,16 +238,16 @@ export function PersonaCreationModal({ onPersonaCreated }: PersonaCreationModalP
             type="button"
             variant="outline"
             onClick={() => setOpen(false)}
-            disabled={isLoading}
+            disabled={createPersonaMutation.isPending}
           >
             Cancel
           </Button>
           <Button
             type="button"
             onClick={handleCreatePersona}
-            disabled={!username.trim() || isLoading || isGeneratingImage}
+            disabled={!username.trim() || createPersonaMutation.isPending || isGeneratingImage}
           >
-            {isLoading ? 'Creating...' : 'Create Persona'}
+            {createPersonaMutation.isPending ? 'Creating...' : 'Create Persona'}
           </Button>
         </DialogFooter>
       </DialogContent>

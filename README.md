@@ -1,6 +1,6 @@
 # Solipcord
 
-A social network exploring what happens when you can't tell humans from AI.
+### Exploring the final days as the line between human and AI blurs.
 
 ## The Idea
 

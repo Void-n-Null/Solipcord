@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import Image from 'next/image';
 import { ChatEntity, getChatDisplayName, getChatImageUrl, isDirectMessage } from "@/types/dm";
+import { GroupAvatarStack } from './GroupAvatarStack';
 import { StatusIndicator, StatusType } from './StatusIndicator';
 
 interface DMSideBarProps {
@@ -32,8 +33,13 @@ export function DMSideBar({ onCategorySelect, selectedCategory, onChatSelect, se
         
         // Combine and sort by most recent
         const allChats = [...dms, ...groups].sort((a, b) => {
-          const aTime = new Date(a.updatedAt).getTime();
-          const bTime = new Date(b.updatedAt).getTime();
+          // Use lastInteraction if available, otherwise use updatedAt
+          const aTime = a.lastInteraction 
+            ? new Date(a.lastInteraction).getTime() 
+            : new Date(a.updatedAt).getTime();
+          const bTime = b.lastInteraction 
+            ? new Date(b.lastInteraction).getTime() 
+            : new Date(b.updatedAt).getTime();
           return bTime - aTime;
         });
         
@@ -95,11 +101,10 @@ export function DMSideBar({ onCategorySelect, selectedCategory, onChatSelect, se
               <div className="text-[13.5px] font-normal text-neutral-400 mb-[6px] px-2 tracking-wide">
                 Direct Messages
               </div>
-              <div className="space-y-1 max-h-96 overflow-y-auto">
+              <div className="space-y-1 overflow-y-auto">
                 {chats.map((chat: ChatEntity) => {
                   const chatName = getChatDisplayName(chat);
                   const chatImageUrl = getChatImageUrl(chat);
-                  const isGroup = !isDirectMessage(chat);
                   
                   return (
                     <div
@@ -113,21 +118,29 @@ export function DMSideBar({ onCategorySelect, selectedCategory, onChatSelect, se
                     >
                       {/* Avatar */}
                       <div className="relative">
-                        {chatImageUrl ? (
-                          <Image
-                            src={chatImageUrl}
-                            alt={chatName}
-                            className="w-8 h-8 rounded-full object-cover"
-                            width={32}
-                            height={32}
-                            onError={(e) => {
-                              e.currentTarget.src = '/avatars/default.png';
-                            }}
-                          />
+                        {isDirectMessage(chat) ? (
+                          // DM avatar
+                          <>
+                            {chatImageUrl ? (
+                              <Image
+                                src={chatImageUrl}
+                                alt={chatName}
+                                className="w-8 h-8 rounded-full object-cover"
+                                width={32}
+                                height={32}
+                                onError={(e) => {
+                                  e.currentTarget.src = '/avatars/default.png';
+                                }}
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-[#404040] flex items-center justify-center text-xs font-semibold text-white">
+                                ?
+                              </div>
+                            )}
+                          </>
                         ) : (
-                          <div className="w-8 h-8 rounded-full bg-[#404040] flex items-center justify-center text-xs font-semibold text-white">
-                            {isGroup ? '👥' : '?'}
-                          </div>
+                          // Group avatar stack
+                          <GroupAvatarStack participantIds={chat.participantIds} size={32} />
                         )}
                         <StatusIndicator status={StatusType.OFFLINE} size={14} />
                       </div>

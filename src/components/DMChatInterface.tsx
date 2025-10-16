@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import Image from 'next/image';
 import { MessageWithPersona, Persona, ChatEntity, getChatDisplayName, getChatImageUrl, isDirectMessage, getChatPersona } from '@/types/dm';
 import { CharacterProfile } from './CharacterProfile';
+import { GroupMembersList } from './GroupMembersList';
+import { GroupAvatarStack } from './GroupAvatarStack';
 import { StatusIndicator, StatusType } from './StatusIndicator';
 import { ChatMessage } from './ChatMessage';
 import { PartialChatMessage } from './PartialChatMessage';
@@ -46,10 +48,14 @@ export function DMChatInterface({ chat, messages, loading, onChatRefresh, onPers
     scrollToBottom();
   }, [messages]);
 
-  // Clear loading state once parent loading is done
-  useEffect(() => {
+  // Clear loading state once parent loading is done and scroll to bottom
+  useLayoutEffect(() => {
     if (!loading) {
       setIsLoadingMessages(false);
+      // Defer scroll to ensure DOM is painted
+      requestAnimationFrame(() => {
+        scrollToBottom();
+      });
     }
   }, [loading]);
 
@@ -179,21 +185,29 @@ export function DMChatInterface({ chat, messages, loading, onChatRefresh, onPers
       <div className="h-[48px] border-b border-[#404040] flex items-center px-4 bg-[#1a1a1e]">
         <div className="flex items-center gap-3">
           <div className="relative">
-            {chatImageUrl ? (
-              <Image
-                src={chatImageUrl}
-                alt={chatName}
-                className="w-6 h-6 rounded-full object-cover"
-                width={24}
-                height={24}
-                onError={(e) => {
-                  e.currentTarget.src = '/avatars/default.png';
-                }}
-              />
+            {isDM ? (
+              // DM avatar
+              <>
+                {chatImageUrl ? (
+                  <Image
+                    src={chatImageUrl}
+                    alt={chatName}
+                    className="w-6 h-6 rounded-full object-cover"
+                    width={24}
+                    height={24}
+                    onError={(e) => {
+                      e.currentTarget.src = '/avatars/default.png';
+                    }}
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-[#404040] flex items-center justify-center text-xs font-semibold">
+                    👤
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="w-6 h-6 rounded-full bg-[#404040] flex items-center justify-center text-xs font-semibold">
-                👥
-              </div>
+              // Group avatar stack
+              <GroupAvatarStack participantIds={chat.participantIds} size={24} />
             )}
             <StatusIndicator status={StatusType.OFFLINE} size={10} />
           </div>
@@ -289,6 +303,13 @@ export function DMChatInterface({ chat, messages, loading, onChatRefresh, onPers
             onRemoveFriend={handleRemoveFriend}
             onBlock={handleBlock}
             onPersonaUpdate={onPersonaUpdate}
+          />
+        )}
+
+        {/* Group Members Sidebar - Only for Groups */}
+        {!isDM && (
+          <GroupMembersList 
+            group={chat}
           />
         )}
       </div>

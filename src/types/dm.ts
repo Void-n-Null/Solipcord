@@ -35,6 +35,7 @@ export interface DirectMessage {
   personaId: string;
   persona: Persona;
   messages: Message[];
+  lastInteraction?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -44,6 +45,7 @@ export interface Group {
   name: string;
   participantIds: string[];
   messages: Message[];
+  lastInteraction?: string;
   createdAt: string;
   updatedAt: string;
 }

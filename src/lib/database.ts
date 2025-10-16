@@ -503,6 +503,22 @@ export class DiscordDatabase {
       where: { id: directMessageId },
     });
   }
+
+  // Update lastInteraction timestamp for a group
+  async updateGroupLastInteraction(groupId: string) {
+    return this.client.group.update({
+      where: { id: groupId },
+      data: { lastInteraction: new Date() },
+    });
+  }
+
+  // Update lastInteraction timestamp for a direct message
+  async updateDirectMessageLastInteraction(directMessageId: string) {
+    return this.client.directMessage.update({
+      where: { id: directMessageId },
+      data: { lastInteraction: new Date() },
+    });
+  }
 }
 
 // Export singleton instance

@@ -1,7 +1,8 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Search, X } from "lucide-react";
 import Image from "next/image";
 import { Input } from "./ui/input";
@@ -25,40 +26,30 @@ export function GroupChatModal({
   onOpenChange,
   onGroupChatCreated,
 }: GroupChatModalProps) {
-  const [friends, setFriends] = useState<Persona[]>([]);
   const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
-  // Fetch friends when modal opens
-  useEffect(() => {
-    if (!open) return;
-
-    const fetchFriends = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        setSelectedFriends(new Set());
-        setSearchQuery('');
-        
-        const response = await fetch('/api/friends');
-        if (!response.ok) {
-          throw new Error('Failed to fetch friends');
-        }
-        const data = await response.json();
-        setFriends(data);
-      } catch (err) {
-        console.error('Error fetching friends:', err);
-        setError(err instanceof Error ? err.message : 'Unknown error');
-      } finally {
-        setLoading(false);
+  // Fetch friends using TanStack Query (reuses cache from FriendsList)
+  const { data: friends = [], isLoading: loading, error } = useQuery({
+    queryKey: ['friends'],
+    queryFn: async () => {
+      const response = await fetch('/api/friends');
+      if (!response.ok) {
+        throw new Error('Failed to fetch friends');
       }
-    };
+      return (await response.json()) as Persona[];
+    },
+  });
 
-    fetchFriends();
-  }, [open]);
+  // Reset selection and search when modal opens
+  const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen) {
+      setSelectedFriends(new Set());
+      setSearchQuery('');
+    }
+    onOpenChange(newOpen);
+  };
 
   // Toggle friend selection
   const toggleFriendSelection = (friendId: string) => {
@@ -106,7 +97,7 @@ export function GroupChatModal({
         onGroupChatCreated(groupChat.id);
       }
       
-      onOpenChange(false);
+      handleOpenChange(false);
     } catch (error) {
       console.error('Error creating group chat:', error);
       alert('Failed to create group chat. Please try again.');
@@ -116,7 +107,7 @@ export function GroupChatModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg bg-[#1e1e22] border-[#404040] text-white">
         <DialogHeader>
           <DialogTitle className="text-white">Create Group Chat</DialogTitle>
@@ -149,7 +140,7 @@ export function GroupChatModal({
 
             {error && (
               <div className="text-red-400 text-center py-8">
-                Error: {error}
+                Error: {error instanceof Error ? error.message : 'Unknown error'}
               </div>
             )}
 
@@ -212,7 +203,7 @@ export function GroupChatModal({
 
         <DialogFooter className="flex gap-2">
           <button
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleOpenChange(false)}
             className="flex-1 px-4 py-2 text-white/80 bg-[#2a2a2e] hover:bg-[#3a3a3e] rounded-lg transition-colors"
           >
             Cancel

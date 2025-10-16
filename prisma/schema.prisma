@@ -49,6 +49,7 @@ model Group {
   id              String   @id @default(cuid())
   name            String
   participantIds  String[] // Array of persona IDs that are participants
+  lastInteraction DateTime? // Track most recent interaction (message created)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   
@@ -60,10 +61,11 @@ model Group {
 
 // Direct messages (DMs) - between user and persona
 model DirectMessage {
-  id        String   @id @default(cuid())
-  personaId String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  personaId       String
+  lastInteraction DateTime? // Track most recent interaction (message created)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
   
   // Relations
   persona   Persona  @relation(fields: [personaId], references: [id], onDelete: Cascade)

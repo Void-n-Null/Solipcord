@@ -8,6 +8,7 @@ import {
 import { DirectMessageRepository, directMessageRepository } from '@/repositories/direct-message.repository';
 import { messageEvents } from '@/events/message.events';
 import { broadcastMessageToDM, broadcastMessageToGroup } from '@/lib/websocket';
+import { db } from '@/lib/database';
 
 /**
  * Service layer for Message business logic
@@ -42,15 +43,24 @@ export class MessageService {
       content: data.content.trim(),
     });
 
-    console.log('\n' + '🔥'.repeat(40));
+
     console.log('📨 MESSAGE SERVICE: Message created in DB');
-    console.log('🔥'.repeat(40));
+
     console.log('Message ID:', message.id);
     console.log('Content:', message.content);
     console.log('DM ID:', message.directMessageId);
     console.log('Group ID:', message.groupId);
     console.log('User ID:', message.userId);
     console.log('Persona ID:', message.personaId);
+
+    // Update lastInteraction for DM or Group
+    if (message.directMessageId) {
+      console.log('🔄 Updating lastInteraction for DM:', message.directMessageId);
+      await db.updateDirectMessageLastInteraction(message.directMessageId);
+    } else if (message.groupId) {
+      console.log('🔄 Updating lastInteraction for Group:', message.groupId);
+      await db.updateGroupLastInteraction(message.groupId);
+    }
 
     // Fetch DM data if this is a DM message
     let dm;
@@ -83,11 +93,10 @@ export class MessageService {
     });
 
     console.log('✅ EVENT EMITTED!');
-    console.log('🔥'.repeat(40) + '\n');
+
 
     // Broadcast to WebSocket clients
     if (message.directMessageId) {
-      console.log('\n📡 ABOUT TO BROADCAST TO DM CLIENTS');
       console.log(`DM ID: ${message.directMessageId}`);
       console.log(`Message ID: ${message.id}`);
       console.log(`Message content: "${message.content}"`);
@@ -122,9 +131,7 @@ export class MessageService {
   /**
    * Get all messages with optional pagination
    */
-  async getAllMessages(options?: MessageQueryOptions) {
-    return this.repository.findAll(options);
-  }
+  async getAllMessages(options?: MessageQueryOptions) { return this.repository.findAll(options);}
 
   /**
    * Get messages by group ID

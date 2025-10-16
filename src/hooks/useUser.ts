@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 export interface User {
   id: string;
@@ -10,50 +10,29 @@ export interface User {
 }
 
 /**
- * Hook to fetch and cache the current (only) user
+ * Hook to fetch and cache the current (only) user using TanStack Query
+ * Automatically caches and deduplicates requests
  */
 export function useUser() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchUser = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/users');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch user');
-        }
-        
-        const data = await response.json();
-        
-        if (isMounted) {
-          setUser(data);
-          setError(null);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : 'Unknown error');
-          setUser(null);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+  const { data: user = null, isLoading: loading, error } = useQuery({
+    queryKey: ['user'],
+    queryFn: async () => {
+      const response = await fetch('/api/users');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch user');
       }
-    };
+      
+      return (await response.json()) as User;
+    },
+    staleTime: Infinity, // User data doesn't change often, cache indefinitely
+    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+  });
 
-    fetchUser();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  return { user, loading, error };
+  return { 
+    user, 
+    loading, 
+    error: error instanceof Error ? error.message : (error ? 'Unknown error' : null) 
+  };
 }
 
