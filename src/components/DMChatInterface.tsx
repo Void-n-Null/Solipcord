@@ -71,6 +71,11 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
       const newMessage = await response.json();
       setMessages(prev => [...prev, newMessage]);
       setMessage('');
+      
+      // Trigger DM refresh to update sidebar ordering
+      if (onDMRefresh) {
+        onDMRefresh();
+      }
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -251,6 +256,20 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
                 const previousDate = index > 0 ? new Date(messages[index - 1].createdAt).toDateString() : null;
                 const showDateDivider = previousDate && currentDate !== previousDate;
 
+                // Check if this message should be grouped with the previous one
+                const isGroupedMessage = index > 0 && (() => {
+                  const prevMsg = messages[index - 1];
+                  const currentTime = new Date(msg.createdAt).getTime();
+                  const prevTime = new Date(prevMsg.createdAt).getTime();
+                  const timeDiff = currentTime - prevTime;
+                  const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+                  
+                  // Group if within 5 minutes and same sender
+                  return timeDiff <= fiveMinutes && 
+                         msg.persona?.id === prevMsg.persona?.id &&
+                         msg.user?.id === prevMsg.user?.id;
+                })();
+
                 return (
                   <div key={msg.id}>
                     {showDateDivider && (
@@ -269,29 +288,50 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
                       </div>
                     )}
                     
-                    <div className="flex gap-3">
-                      <Image
-                        src={msg.persona?.imageUrl || '/avatars/default.png'}
-                        alt={msg.persona?.username || 'User'}
-                        className="w-10 h-10 rounded-full object-cover"
-                        width={40}
-                        height={40}
-                        onError={(e) => {
-                          e.currentTarget.src = '/avatars/default.png';
-                        }}
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-baseline gap-2 mb-1">
-                          <span className="text-white font-semibold">
-                            {msg.persona?.username || 'You'}
-                          </span>
-                          <span className="text-[#b9bbbe] text-xs">
+                    <div className="group flex gap-3 px-2 py-1 -mx-2 rounded-md hover:bg-[#2a2a2e] transition-colors">
+                      {/* Only show avatar for first message in group */}
+                      {!isGroupedMessage && (
+                        <Image
+                          src={msg.persona?.imageUrl || '/avatars/default.png'}
+                          alt={msg.persona?.username || 'User'}
+                          className="w-10 h-10 rounded-full object-cover"
+                          width={40}
+                          height={40}
+                          onError={(e) => {
+                            e.currentTarget.src = '/avatars/default.png';
+                          }}
+                        />
+                      )}
+                      
+                      {/* Spacer for grouped messages to align with avatar */}
+                      {isGroupedMessage && <div className="w-10" />}
+                      
+                      <div className="flex-1 relative">
+                        {/* Only show username and timestamp for first message in group */}
+                        {!isGroupedMessage && (
+                          <div className="flex items-baseline gap-2 mb-1">
+                            <span className="text-white font-semibold">
+                              {msg.persona?.username || 'You'}
+                            </span>
+                            <span className="text-[#b9bbbe] text-xs">
+                              {new Date(msg.createdAt).toLocaleTimeString([], { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              })}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* Show timestamp for grouped messages on hover - absolutely positioned */}
+                        {isGroupedMessage && (
+                          <span className="font-gg-sans absolute left-[-50px] top-1/2 -translate-y-1/2 text-[#b9bbbe] text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">
                             {new Date(msg.createdAt).toLocaleTimeString([], { 
                               hour: '2-digit', 
                               minute: '2-digit' 
                             })}
                           </span>
-                        </div>
+                        )}
+                        
                         <p className="text-[#dcddde]">{msg.content}</p>
                       </div>
                     </div>

@@ -195,7 +195,7 @@ export class DiscordDatabase {
   }
 
   async getAllDirectMessages() {
-    return this.client.directMessage.findMany({
+    const directMessages = await this.client.directMessage.findMany({
       include: {
         persona: true,
         messages: {
@@ -209,6 +209,24 @@ export class DiscordDatabase {
           take: 1, // Get last message for preview
         },
       },
+    });
+
+    // Sort DMs by the most recent message timestamp
+    return directMessages.sort((a, b) => {
+      const aLastMessage = a.messages[0];
+      const bLastMessage = b.messages[0];
+      
+      // If both have messages, sort by message timestamp
+      if (aLastMessage && bLastMessage) {
+        return new Date(bLastMessage.createdAt).getTime() - new Date(aLastMessage.createdAt).getTime();
+      }
+      
+      // If only one has messages, prioritize the one with messages
+      if (aLastMessage && !bLastMessage) return -1;
+      if (!aLastMessage && bLastMessage) return 1;
+      
+      // If neither has messages, sort by DM creation time
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   }
 
@@ -243,7 +261,7 @@ export class DiscordDatabase {
         persona: true,
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: 'asc',
       },
       take: limit,
     });
@@ -257,7 +275,7 @@ export class DiscordDatabase {
         persona: true,
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: 'asc',
       },
       take: limit,
     });
