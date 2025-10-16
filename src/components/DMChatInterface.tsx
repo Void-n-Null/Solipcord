@@ -2,10 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { Plus, Gift, Smile, Gamepad2 } from 'lucide-react';
 import { DirectMessage, MessageWithPersona, Persona } from '@/types/dm';
 import { CharacterProfile } from './CharacterProfile';
 import { StatusIndicator, StatusType } from './StatusIndicator';
+import { ChatMessage } from './ChatMessage';
+import { PartialChatMessage } from './PartialChatMessage';
+import { MessageDateDivider } from './MessageDateDivider';
+import { ChatProfileBlock } from './ChatProfileBlock';
+import { ChatTypingArea } from './ChatTypingArea';
 
 interface DMChatInterfaceProps {
   dm: DirectMessage;
@@ -113,6 +117,23 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
     }
   };
 
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      const response = await fetch(`/api/messages/${messageId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete message');
+      }
+
+      // Remove message from local state
+      setMessages(prev => prev.filter(msg => msg.id !== messageId));
+    } catch (error) {
+      console.error('Error deleting message:', error);
+    }
+  };
+
   const handleBlock = async () => {
     if (!confirm(`Are you sure you want to block ${dm.persona.username}?`)) {
       return;
@@ -168,11 +189,11 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex min-h-0">
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col h-full">
           {/* Main Content */}
-          <div className="flex-1 bg-[#1a1a1e] overflow-hidden">
+          <div className="flex-1 bg-[#1a1a1e] overflow-hidden flex flex-col">
         {loading ? (
           /* Loading State */
           <div className="flex-1 flex items-center justify-center">
@@ -180,75 +201,22 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
           </div>
         ) : (
           /* Messages Area */
-          <div className="flex-1 flex flex-col h-full justify-end">
-            {/* Persona Information Block - Always visible */}
-            <div className="flex items-start gap-4 p-6 px-3 pb-[10px]">
-              {/* Profile Picture */}
-              <div className="relative pl-1">
-                <Image
-                  src={dm.persona.imageUrl || '/avatars/default.png'}
-                  alt={dm.persona.username}
-                  className="w-20 h-20 rounded-full object-cover"
-                  width={128}
-                  height={128}
-                  onError={(e) => {
-                    e.currentTarget.src = '/avatars/default.png';
-                  }}
-                />
-
-                {/* Display Name */}
-                <h2 className="text-[30px] font-bold text-white mb-1 mt-2">{dm.persona.username}</h2>
-                
-                {/* Username */}
-                <p className="text-white text-2xl mb-3">{dm.persona.username}</p>
-
-                                {/* DM History Message */}
-                                <p className="text-neutral-200 text-md mb-3">
-                  This is the beginning of your direct message history with <b>{dm.persona.username}</b>.
-                </p>
-
-                {/* Mutual Server and Actions */}
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-green-600 rounded-sm flex items-center justify-center">
-                    <div className="w-2 h-2 bg-white rounded-sm"></div>
-                  </div>
-                  <span className="text-[#b9bbbe] text-sm">1 Mutual Server</span>
-                  {/* Action Buttons */}
-                  <div className="flex gap-2 ml-4">
-                    <button
-                      onClick={handleRemoveFriend}
-                      className="px-3 py-1 bg-[#40444b] text-white text-xs font-medium rounded hover:bg-[#4f545c] transition-colors"
-                    >
-                      Remove Friend
-                    </button>
-                    <button
-                      onClick={handleBlock}
-                      className="px-3 py-1 bg-[#40444b] text-white text-xs font-medium rounded hover:bg-[#4f545c] transition-colors"
-                    >
-                      Block
-                    </button>
-                  </div>
-                </div>
-              </div>
-    
-            </div>
-
+          <div className="flex-1 flex flex-col justify-end min-h-0">
             {/* Messages Container */}
-            <div className="overflow-y-auto p-4 space-y-1 max-h-96">
+            
+            <div className="overflow-y-auto px-4">
+              
+              {/* Persona Information Block - Always visible at top */}
+              <div className="pb-[10px]">
+              <ChatProfileBlock
+                persona={dm.persona}
+                onRemoveFriend={handleRemoveFriend}
+                onBlock={handleBlock}
+              />
+              </div>
+
               {messages.length > 0 && (
-                <div className="flex items-center justify-center">
-                  <div className="flex items-center w-full">
-                    <div className="flex-1 h-px bg-[#404040]"></div>
-                    <div className="px-4 text-[#b9bbbe] text-sm">
-                      {new Date(messages[0].createdAt).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                    </div>
-                    <div className="flex-1 h-px bg-[#404040]"></div>
-                  </div>
-                </div>
+                <MessageDateDivider date={new Date(messages[0].createdAt)} size="sm" />
               )}
               
               {messages.map((msg, index) => {
@@ -271,130 +239,34 @@ export function DMChatInterface({ dm, onDMRefresh, onPersonaUpdate }: DMChatInte
                 })();
 
                 return (
-                  <div key={msg.id}>
+                  <div key={msg.id} className={!isGroupedMessage ? 'mt-4' : ''}>
                     {showDateDivider && (
-                      <div className="flex items-center justify-center py-4">
-                        <div className="flex items-center w-full">
-                          <div className="flex-1 h-px bg-[#404040]"></div>
-                          <div className="px-4 text-[#b9bbbe] text-sm">
-                            {new Date(msg.createdAt).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })}
-                          </div>
-                          <div className="flex-1 h-px bg-[#404040]"></div>
-                        </div>
-                      </div>
+                      <MessageDateDivider date={new Date(msg.createdAt)} />
                     )}
                     
-                    <div className="group flex gap-3 px-2 py-1 -mx-2 rounded-md hover:bg-[#2a2a2e] transition-colors">
-                      {/* Only show avatar for first message in group */}
-                      {!isGroupedMessage && (
-                        <Image
-                          src={msg.persona?.imageUrl || '/avatars/default.png'}
-                          alt={msg.persona?.username || 'User'}
-                          className="w-10 h-10 rounded-full object-cover"
-                          width={40}
-                          height={40}
-                          onError={(e) => {
-                            e.currentTarget.src = '/avatars/default.png';
-                          }}
-                        />
-                      )}
-                      
-                      {/* Spacer for grouped messages to align with avatar */}
-                      {isGroupedMessage && <div className="w-10" />}
-                      
-                      <div className="flex-1 relative">
-                        {/* Only show username and timestamp for first message in group */}
-                        {!isGroupedMessage && (
-                          <div className="flex items-baseline gap-2 mb-1">
-                            <span className="text-white font-semibold">
-                              {msg.persona?.username || 'You'}
-                            </span>
-                            <span className="text-[#b9bbbe] text-xs">
-                              {new Date(msg.createdAt).toLocaleTimeString([], { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
-                              })}
-                            </span>
-                          </div>
-                        )}
-                        
-                        {/* Show timestamp for grouped messages on hover - absolutely positioned */}
-                        {isGroupedMessage && (
-                          <span className="font-gg-sans absolute left-[-50px] top-1/2 -translate-y-1/2 text-[#b9bbbe] text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">
-                            {new Date(msg.createdAt).toLocaleTimeString([], { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            })}
-                          </span>
-                        )}
-                        
-                        <p className="text-[#dcddde]">{msg.content}</p>
-                      </div>
-                    </div>
+                    {isGroupedMessage ? (
+                      <PartialChatMessage msg={msg} onDelete={handleDeleteMessage} />
+                    ) : (
+                      <ChatMessage msg={msg} onDelete={handleDeleteMessage} />
+                    )}
                   </div>
                 );
               })}
               <div ref={messagesEndRef} />
+              <div className="h-5"></div>
             </div>
+
           </div>
           )}
           </div>
 
           {/* Message Input */}
-          <div className="p-4 bg-[#1a1a1e] border-t border-[#404040]">
-            <form onSubmit={handleSendMessage} className="flex items-center gap-3">
-              {/* Plus Button */}
-              <button
-                type="button"
-                className="p-2 text-[#b9bbbe] hover:text-white transition-colors"
-              >
-                <Plus className="w-5 h-5" />
-              </button>
-              
-              {/* Message Input */}
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder={`Message @${dm.persona.username}`}
-                  className="w-full bg-[#40444b] text-white placeholder-[#72767d] px-4 py-2 rounded-lg border-0 focus:outline-none focus:ring-0"
-                />
-              </div>
-              
-              {/* Action Icons */}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="p-2 text-[#b9bbbe] hover:text-white transition-colors"
-                >
-                  <Gift className="w-5 h-5" />
-                </button>
-                <button
-                  type="button"
-                  className="p-2 text-[#b9bbbe] hover:text-white transition-colors"
-                >
-                  <span className="text-xs font-semibold">GIF</span>
-                </button>
-                <button
-                  type="button"
-                  className="p-2 text-[#b9bbbe] hover:text-white transition-colors"
-                >
-                  <Smile className="w-5 h-5" />
-                </button>
-                <button
-                  type="button"
-                  className="p-2 text-[#b9bbbe] hover:text-white transition-colors"
-                >
-                  <Gamepad2 className="w-5 h-5" />
-                </button>
-              </div>
-            </form>
-          </div>
+          <ChatTypingArea
+            message={message}
+            onMessageChange={setMessage}
+            onSendMessage={handleSendMessage}
+            personaUsername={dm.persona.username}
+          />
         </div>
 
         {/* Character Profile Sidebar */}

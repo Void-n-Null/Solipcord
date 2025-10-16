@@ -5,6 +5,35 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Message formatting utility
+export function formatMessageTime(date: Date): string {
+  const now = new Date();
+  const messageDate = new Date(date);
+  
+  // Check if same day (compare dates, not timestamps)
+  const sameDay = 
+    now.getDate() === messageDate.getDate() &&
+    now.getMonth() === messageDate.getMonth() &&
+    now.getFullYear() === messageDate.getFullYear();
+  
+  if (sameDay) {
+    // Show time only for today's messages
+    return messageDate.toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  } else {
+    // Show date and time for older messages (e.g., "10/16/25, 1:22 AM")
+    return messageDate.toLocaleString([], {
+      month: '2-digit',
+      day: '2-digit',
+      year: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+}
+
 // Neural network utility functions
 export const neuralUtils = {
   // Activation functions

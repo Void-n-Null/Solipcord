@@ -85,21 +85,21 @@ export function DMSideBar({ onCategorySelect, selectedCategory, onDMSelect, sele
             onClick={() => onCategorySelect('shop')}
           />
           </div>
-          
+          <div className="w-full h-[0.75px] bg-[var(--header-border)]/75 mt-[13px]"></div>
           {/* DM List */}
           {dms.length > 0 && (
-            <div className="mt-4">
-              <div className="text-xs font-semibold text-[var(--header-text)] mb-2 px-2 uppercase tracking-wide">
+            <div className="mt-3">
+              <div className="text-[13.5px] font-normal text-neutral-400 mb-[6px] px-2 tracking-wide">
                 Direct Messages
               </div>
               <div className="space-y-1 max-h-96 overflow-y-auto">
                 {dms.map((dm) => (
                   <div
                     key={dm.id}
-                    className={`flex items-center gap-3 px-2 py-2 rounded-md cursor-pointer transition-colors ${
+                    className={`flex items-center gap-3 px-2 pt-[4px] pb-[5px] rounded-md cursor-pointer transition-colors ${
                       selectedDM?.id === dm.id 
-                        ? 'bg-[#5865f2] text-white' 
-                        : 'hover:bg-[#2a2a2e] text-[var(--header-text)]'
+                        ? 'hover:bg-[#1d1d1e]  bg-[#2c2c30] text-white' 
+                        : 'hover:bg-[#1d1d1e] text-[var(--header-text)]'
                     }`}
                     onClick={() => onDMSelect?.(dm)}
                   >
@@ -120,8 +120,10 @@ export function DMSideBar({ onCategorySelect, selectedCategory, onDMSelect, sele
                     
                     {/* Username */}
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">
-                        {dm.persona.username}
+                      <div className="text-[16px] font-medium truncate">
+                        {dm.persona.username.length > 28 
+                          ? `${dm.persona.username.substring(0, 29)}...` 
+                          : dm.persona.username}
                       </div>
                     </div>
                   </div>

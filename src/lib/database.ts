@@ -282,6 +282,12 @@ export class DiscordDatabase {
   }
 
 
+  async deleteMessage(messageId: string) {
+    return this.client.message.delete({
+      where: { id: messageId },
+    });
+  }
+
   // Utility methods for simplified functionality
   async addPersonaAsFriend(personaId: string, friendId: string) {
     const persona = await this.getPersonaById(personaId);
