@@ -35,6 +35,7 @@ export function ContentArea() {
           throw new Error('Failed to fetch messages');
         }
         const data = await response.json();
+        // Clear old messages and set new ones atomically to prevent layout shift
         setMessages(data);
       } catch (error) {
         console.error('Error fetching messages:', error);
@@ -82,10 +83,11 @@ export function ContentArea() {
   const handleChatSelect = (chat: ChatEntity) => {
     // Only trigger loading if switching to a different chat
     if (selectedChat?.id !== chat.id) {
-      setLoading(true);
       setSelectedChat(chat);
       setSelectedPage(null); // Clear page selection when chat is selected
-      setMessages([]); // Clear messages when switching chats
+      setLoading(true);
+      // Don't clear messages immediately - let the new chat's messages load first
+      // This prevents layout shift during WebSocket reconnection
     }
   };
 
@@ -155,7 +157,7 @@ export function ContentArea() {
 
   return (
     <div className="flex-1 flex min-h-0">
-      <div className="flex-1 border-l border-t border-[var(--header-border)] bg-[#1a1a1e] rounded-tl-xl flex min-h-0">
+      <div className="flex-1 border-l border-t border-[var(--header-border)] bg-[#1a1a1e] flex min-h-0">
         <DMSideBar 
           onCategorySelect={handleCategorySelect} 
           selectedCategory={selectedPage} 

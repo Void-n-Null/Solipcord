@@ -69,12 +69,16 @@ export function DMSideBar({ onCategorySelect, selectedCategory, onChatSelect, se
 
   return (
     <aside className="w-[302px] h-full bg-[var(--background)] rounded-tl-xl flex flex-col">
+      {/* Static header */}
       <div className="pt-4 flex-shrink-0">
         <h2 className="text-sm font-semibold text-[var(--header-text)] mb-[11px] mx-auto w-full text-center px-2">Direct Messages</h2>
         {/* Full width divider */}
         <div className="w-full h-[1px] bg-[var(--header-border)]"></div>
-        <div className="px-2">
-          <div className="flex flex-col gap-[2px] mt-[9px]">
+      </div>
+      
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto px-2">
+        <div className="flex flex-col gap-[2px] mt-[9px]">
           <DMCategoryButton 
             iconSrc="/wave.svg" 
             label="Friends" 
@@ -159,7 +163,6 @@ export function DMSideBar({ onCategorySelect, selectedCategory, onChatSelect, se
               </div>
             </div>
           )}
-        </div>
       </div>
     </aside>
   );

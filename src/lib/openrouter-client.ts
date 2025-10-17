@@ -249,7 +249,7 @@ export class OpenRouterClient {
     const startTime = Date.now();
     const {
       messages,
-      model = 'x-ai/grok-4-fast',
+      model = 'anthropic/claude-haiku-4.5',
       temperature = 0.7,
       maxTokens = 1000,
     } = params;

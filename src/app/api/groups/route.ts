@@ -52,10 +52,10 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Notify the group listener service about the group deletion
+    // Notify the AI orchestration service about the group deletion
     try {
-      const { groupChatListenerService } = await import('@/services/group-chat-listener.service');
-      groupChatListenerService.stopListeningToGroup(groupId);
+      const { aiOrchestrationService } = await import('@/services/ai-orchestration.service');
+      aiOrchestrationService.stopListeningToGroup(groupId);
     } catch (error) {
       console.error('Failed to stop group listener:', error);
       // Don't fail the request if listener cleanup fails

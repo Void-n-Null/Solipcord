@@ -9,20 +9,16 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     console.log('🚀 [SERVER] Starting - loading instrumentation');
 
-    // Import the services (dynamic import to avoid issues)
-    const { dmListenerService } = await import('@/services/dm-listener.service');
-    const { groupChatListenerService } = await import('@/services/group-chat-listener.service');
+    // Import the unified AI orchestration service (dynamic import to avoid issues)
+    const { aiOrchestrationService } = await import('@/services/ai-orchestration.service');
 
     try {
-      // Initialize the DM listener service
-      await dmListenerService.initialize();
+      // Initialize the unified AI orchestration service
+      await aiOrchestrationService.initialize();
       
-      // Initialize the group chat listener service
-      await groupChatListenerService.initialize();
-      
-      console.log('✅ [SERVER] All services initialized successfully');
+      console.log('✅ [SERVER] AI Orchestration Service initialized successfully');
     } catch (error) {
-      console.error('❌ [SERVER] Failed to initialize services:', error);
+      console.error('❌ [SERVER] Failed to initialize AI Orchestration Service:', error);
     }
   }
 }

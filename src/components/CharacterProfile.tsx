@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { UserPlus, MoreHorizontal } from 'lucide-react';
+import { UserPlus, MoreHorizontal, ArrowRight } from 'lucide-react';
 import { Persona } from '@/types/dm';
+import { StatusIndicator, StatusType } from './StatusIndicator';
 
 interface CharacterProfileProps {
   persona: Persona;
@@ -94,7 +95,7 @@ export function CharacterProfile({ persona, onRemoveFriend, onBlock, onPersonaUp
           </div>
           
           {/* Profile Picture - Positioned to the left */}
-          <div className="absolute -bottom-10 left-2">
+          <div className="absolute -bottom-[38px] left-[9px]">
             <div className="relative">
                      <Image
                        src={currentPersona.imageUrl || '/avatars/default.png'}
@@ -107,44 +108,36 @@ export function CharacterProfile({ persona, onRemoveFriend, onBlock, onPersonaUp
                 }}
               />
               {/* Online Status */}
-              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[#232428] rounded-full flex items-center justify-center">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              </div>
+              <StatusIndicator
+                status={StatusType.OFFLINE}
+                size={24}
+                className="absolute -bottom-[-6px] -right-[-6px] "
+              />
             </div>
           </div>
         </div>
 
         {/* Main Content Area */}
-        <div className="pt-12 pb-4 px-4">
+        <div className="pt-12 pb-2 px-4">
                  {/* Display Name - No warning icon */}
-                 <div className="mb-2">
-                   <h3 className="text-lg font-semibold text-white">
+                 <div className="relative bottom-[4px] right-[1px]">
+                   <h3 className="text-[20px] font-bold text-white">
                      {currentPersona.username}
                    </h3>
                  </div>
 
           {/* Username/Tag */}
-          <div className="mb-4">
-            <span className="text-[#b9bbbe] text-sm">{currentPersona.username}</span>
-            {/* WAVE Badge */}
-            <div className="inline-flex items-center gap-1 ml-2 px-2 py-0.5 bg-[#5865f2] rounded text-xs text-white">
-              <span className="w-3 h-3 inline-block bg-white rounded-sm"></span>
-              <span>WAVE</span>
-            </div>
+          <div className="mb-1 relative bottom-[7px] right-[1px]">
+            <span className="text-[white] text-sm">{currentPersona.username}</span>
+
           </div>
 
-          {/* About Me Section */}
-          <div className="mb-4">
-            <div className="text-white font-semibold text-sm mb-2">About Me</div>
-            <div className="text-[#b9bbbe] text-sm">
-              AI Persona created for neural social networking
-            </div>
-          </div>
+
 
           {/* Member Since - No card styling */}
-          <div className="mb-4">
-            <div className="text-white font-semibold text-sm mb-1">Member Since</div>
-            <div className="text-[#b9bbbe] text-sm">
+          <div className="mb-3 bg-[#2c2d32] rounded-md p-3">
+            <div className="text-white font-medium text-[13px] mb-1">Member Since</div>
+            <div className="text-neutral-100 text-sm">
               {new Date(persona.createdAt).toLocaleDateString('en-US', {
                 month: 'short',
                 day: 'numeric',
@@ -153,48 +146,30 @@ export function CharacterProfile({ persona, onRemoveFriend, onBlock, onPersonaUp
             </div>
           </div>
 
+
+          <div className=" bg-[#2c2d32] rounded-md p-3">
           {/* Mutual Servers */}
-          <div className="mb-4">
-            <div className="text-white font-semibold text-sm mb-1">Mutual Servers — 1</div>
+          <div className="mb-3 flex flew-row items-center justify-between">
+            <div className="text-white font-medium text-sm mb-1">Mutual Servers — 1</div>
+            <div className="text-white text-sm"><ArrowRight className="w-4 h-4" /></div>
           </div>
+
+          {/* Divider */}
+          <div className="border-t border-[#40444b]/50 my-3"></div>
 
           {/* Mutual Friends */}
-          <div className="mb-6">
+          <div className="flex flew-row items-center justify-between">
             <div className="text-white font-semibold text-sm mb-1">Mutual Friends — 0</div>
+            <div className="text-white text-sm"><ArrowRight className="w-4 h-4" /></div>
+          </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="space-y-2">
-            {persona.isFriendOfUser ? (
-              <>
-                <button
-                  onClick={onRemoveFriend}
-                  className="w-full py-2 px-4 bg-[#5865f2] text-white text-sm font-medium rounded hover:bg-[#4752c4] transition-colors"
-                >
-                  Remove Friend
-                </button>
-                <button
-                  onClick={onBlock}
-                  className="w-full py-2 px-4 bg-[#ed4245] text-white text-sm font-medium rounded hover:bg-[#c03e40] transition-colors"
-                >
-                  Block
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={handleAddFriend}
-                className="w-full py-2 px-4 bg-[#5865f2] text-white text-sm font-medium rounded hover:bg-[#4752c4] transition-colors"
-              >
-                Add Friend
-              </button>
-            )}
-          </div>
 
           {/* Divider */}
           <div className="border-t border-[#40444b] my-4"></div>
 
           {/* View Full Profile Link */}
-          <div className="text-center">
+          <div className="text-center mt-auto">
             <button
               onClick={() => setShowFullProfile(!showFullProfile)}
               className="text-[#b9bbbe] text-sm hover:text-white transition-colors"

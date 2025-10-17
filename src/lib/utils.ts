@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// Message formatting utility
+// Message formatting utilities
 export function formatMessageTime(date: Date): string {
   const now = new Date();
   const messageDate = new Date(date);
@@ -21,7 +21,8 @@ export function formatMessageTime(date: Date): string {
     // Show time only for today's messages
     return messageDate.toLocaleTimeString([], { 
       hour: '2-digit', 
-      minute: '2-digit' 
+      minute: '2-digit',
+      hour12: true
     });
   } else {
     // Show date and time for older messages (e.g., "10/16/25, 1:22 AM")
@@ -30,9 +31,21 @@ export function formatMessageTime(date: Date): string {
       day: '2-digit',
       year: '2-digit',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      hour12: true
     });
   }
+}
+
+export function formatMessageTimeOnly(date: Date): string {
+  const messageDate = new Date(date);
+  
+  // Always show time only with AM/PM
+  return messageDate.toLocaleTimeString([], { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: true
+  });
 }
 
 // Neural network utility functions

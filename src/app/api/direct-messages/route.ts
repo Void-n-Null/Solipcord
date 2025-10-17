@@ -15,12 +15,12 @@ export async function POST(request: NextRequest) {
 
     const directMessage = await db.createDirectMessage(personaId);
     
-    // Notify the DM listener service about the new DM conversation
+    // Notify the AI orchestration service about the new DM conversation
     try {
-      const { dmListenerService } = await import('@/services/dm-listener.service');
+      const { aiOrchestrationService } = await import('@/services/ai-orchestration.service');
       const persona = await db.getPersonaById(personaId);
       if (persona) {
-        dmListenerService.addDMListener(directMessage.id, personaId, persona.username);
+        aiOrchestrationService.addDMListener(directMessage.id, personaId, persona.username);
       }
     } catch (error) {
       console.error('Failed to add DM listener:', error);
@@ -62,10 +62,10 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Notify the DM listener service about the DM deletion
+    // Notify the AI orchestration service about the DM deletion
     try {
-      const { dmListenerService } = await import('@/services/dm-listener.service');
-      dmListenerService.stopListeningToDM(directMessageId);
+      const { aiOrchestrationService } = await import('@/services/ai-orchestration.service');
+      aiOrchestrationService.stopListeningToDM(directMessageId);
     } catch (error) {
       console.error('Failed to stop DM listener:', error);
       // Don't fail the request if listener cleanup fails

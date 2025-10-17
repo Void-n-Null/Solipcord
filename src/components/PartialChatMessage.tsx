@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { MessageWithPersona } from '@/types/dm';
 import { ChatMessageText } from './ChatMessageText';
 import { MessageActionsMenu } from './MessageActionsMenu';
-import { formatMessageTime } from '@/lib/utils';
+import { formatMessageTimeOnly } from '@/lib/utils';
 
 interface PartialChatMessageProps {
   msg: MessageWithPersona;
@@ -37,7 +37,7 @@ export function PartialChatMessage({ msg, onDelete }: PartialChatMessageProps) {
         <div className="flex-1 relative">
           {/* Show timestamp on hover - absolutely positioned */}
           <span className="font-gg-sans absolute left-[-50px] top-1/2 -translate-y-1/2 text-[#b9bbbe] text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">
-            {formatMessageTime(new Date(msg.createdAt))}
+            {formatMessageTimeOnly(new Date(msg.createdAt))}
           </span>
           <div className="pl-[4px]">
           <ChatMessageText content={msg.content} />
