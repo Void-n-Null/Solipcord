@@ -4,7 +4,7 @@ import { db } from '@/lib/database';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { username, imageUrl, isFriendOfUser = true } = body;
+    const { username, description, imageUrl, isFriendOfUser = true } = body;
 
     if (!username || typeof username !== 'string') {
       return NextResponse.json(
@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
 
     const persona = await db.createPersona({
       username: username.trim(),
+      description: description?.trim() || undefined,
       imageUrl: imageUrl?.trim() || undefined,
       isFriendOfUser,
       friendsIds: [],

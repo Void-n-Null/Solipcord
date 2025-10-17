@@ -1,5 +1,9 @@
 import { messageEvents } from '@/events/message.events';
 import { messageService } from '@/services/message.service';
+import { contextConstructor } from '@/services/context-constructor';
+import { promptConstructor } from '@/services/prompt-constructor';
+import { aiUtils } from '@/lib/utils';
+import { messageCleanser } from '@/services/group-chat-listener.service';
 
 /**
  * Background service that listens to all DM conversations
@@ -33,25 +37,46 @@ class DMListenerService {
         return;
       }
 
-      console.log('✅ [DM] Responding to user message');
+      console.log('✅ [DM] Generating AI response');
 
       try {
-        // Auto-respond with persona greeting
-        const response = `Hi I'm ${personaName}`;
+        // Build conversation context
+        const context = await contextConstructor.constructContext({
+          personaId,
+          conversationId: dmId,
+          conversationType: 'dm',
+          messageLimit: 50,
+        });
 
-        console.log(`📤 [DM] Sending response: "${response}"`);
+        // Construct prompt from context with prefill
+        const messages = promptConstructor.constructDMPrompt(context);
 
-        const createParams = {
-          content: response,
+        console.log(`📝 [DM] Prompt constructed for ${context.characterCard.name}`);
+
+        // Generate AI response
+        const response = await aiUtils.generateText({
+          messages,
+          temperature: 0.7,
+        });
+
+        console.log(`📤 [DM] Generated response from ${context.characterCard.name}: "${response.substring(0, 100)}..."`);
+
+        // Clean the response to remove XML tags before sending
+        const cleanedResponse = messageCleanser.cleanMessageWithOptions(response, {
+          tagsToHideContent: ['initial_understanding', 'thinking', 'post_response'],
+        });
+
+        // Create message with the cleaned response
+        await messageService.createMessage({
+          content: cleanedResponse,
           personaId: personaId,
           directMessageId: dmId,
-        };
+        });
 
-        const createdMessage = await messageService.createMessage(createParams);
-        console.log('✅ [DM] Response sent successfully');
+        console.log('✅ [DM] AI response sent successfully');
 
       } catch (error) {
-        console.error('❌ [DM] Failed to send response:', error);
+        console.error('❌ [DM] Failed to generate/send response:', error);
       }
     });
 

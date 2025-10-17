@@ -6,6 +6,130 @@ import { aiUtils } from '@/lib/utils';
 import { prisma } from '@/lib/database';
 
 /**
+ * Service for cleaning message content by removing XML-like tags
+ */
+class MessageCleanserService {
+  /**
+   * Clean message content by removing XML-like tags
+   * @param content - The message content to clean
+   * @param tagsToHideContent - Optional array of tag names whose content should be removed entirely
+   * @returns Cleaned message content
+   *
+   * @example
+   * // Remove tags but keep content
+   * cleanMessage('<test>Hi</test> There') // Returns: 'Hi There'
+   *
+   * @example
+   * // Remove tags and hide content of specific tags
+   * cleanMessage('<test>Hi</test> There', ['test']) // Returns: ' There'
+   *
+   * @example
+   * // Handle orphaned closing tags (no opening tag)
+   * cleanMessage('Hello there </message>', ['message']) // Returns: ''
+   */
+  cleanMessage(content: string, tagsToHideContent: string[] = []): string {
+    let cleaned = content;
+
+    // First pass: Remove tags and their content for tags in the hide list
+    if (tagsToHideContent.length > 0) {
+      for (const tagName of tagsToHideContent) {
+        // Escape special regex characters in tag name
+        const escapedTag = tagName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        // Step 1: Remove properly paired tags first (opening + content + closing)
+        // This handles both self-closing tags and tags with content
+        const tagPattern = new RegExp(
+          `<${escapedTag}(?:\\s[^>]*)?>.*?</${escapedTag}>|<${escapedTag}(?:\\s[^>]*)?/>`,
+          'gs'
+        );
+        cleaned = cleaned.replace(tagPattern, '');
+
+        // Step 2: Handle orphaned closing tags (closing tag without opening tag)
+        // After removing paired tags, any remaining closing tags are orphaned
+        // Remove everything from the start up to and including each orphaned closing tag
+        const closingTagPattern = new RegExp(`</${escapedTag}>`, 'g');
+
+        while (closingTagPattern.test(cleaned)) {
+          // Find the first closing tag
+          const closingMatch = cleaned.match(new RegExp(`^(.*?)</${escapedTag}>`, 's'));
+
+          if (closingMatch) {
+            // Remove everything from start up to and including the closing tag
+            cleaned = cleaned.substring(closingMatch[0].length);
+          } else {
+            break;
+          }
+        }
+      }
+    }
+
+    // Second pass: Remove all remaining XML-like tags but keep their content
+    // This matches any tag (opening or closing) like <anything> or </anything>
+    cleaned = cleaned.replace(/<\/?[^>]+>/g, '');
+
+    return cleaned;
+  }
+
+  /**
+   * Clean message content with custom tag configurations
+   * @param content - The message content to clean
+   * @param options - Configuration options
+   * @returns Cleaned message content
+   */
+  cleanMessageWithOptions(
+    content: string,
+    options: {
+      tagsToHideContent?: string[];
+      removeAllTags?: boolean;
+    } = {}
+  ): string {
+    const { tagsToHideContent = [], removeAllTags = true } = options;
+
+    let cleaned = content;
+
+    // Remove tags and their content for specified tags
+    if (tagsToHideContent.length > 0) {
+      for (const tagName of tagsToHideContent) {
+        const escapedTag = tagName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        // Step 1: Remove properly paired tags first
+        const tagPattern = new RegExp(
+          `<${escapedTag}(?:\\s[^>]*)?>.*?</${escapedTag}>|<${escapedTag}(?:\\s[^>]*)?/>`,
+          'gs'
+        );
+        cleaned = cleaned.replace(tagPattern, '');
+
+        // Step 2: Handle orphaned closing tags
+        // After removing paired tags, any remaining closing tags are orphaned
+        const closingTagPattern = new RegExp(`</${escapedTag}>`, 'g');
+
+        while (closingTagPattern.test(cleaned)) {
+          // Find the first closing tag
+          const closingMatch = cleaned.match(new RegExp(`^(.*?)</${escapedTag}>`, 's'));
+
+          if (closingMatch) {
+            // Remove everything from start up to and including the closing tag
+            cleaned = cleaned.substring(closingMatch[0].length);
+          } else {
+            break;
+          }
+        }
+      }
+    }
+
+    // Remove all remaining tags if configured
+    if (removeAllTags) {
+      cleaned = cleaned.replace(/<\/?[^>]+>/g, '');
+    }
+
+    return cleaned;
+  }
+}
+
+// Singleton instance
+export const messageCleanser = new MessageCleanserService();
+
+/**
  * Background service that listens to all group chat conversations
  * and auto-responds when users send messages
  */
@@ -70,24 +194,27 @@ class GroupChatListenerService {
                 messageLimit: 50,
               });
 
-              // Construct prompt from context
-              const { system, prompt } = promptConstructor.constructGroupChatPrompt(context);
+              // Construct prompt from context with prefill
+              const messages = promptConstructor.constructGroupChatPrompt(context);
 
               console.log(`📝 [GROUP] Prompt constructed for ${context.characterCard.name}`);
 
               // Generate AI response
               const response = await aiUtils.generateText({
-                system,
-                prompt,
+                messages,
                 temperature: 0.7,
-                prefill: 'thats based because',
               });
 
               console.log(`📤 [GROUP] Generated response from ${context.characterCard.name}: "${response.substring(0, 100)}..."`);
-              
-              // Create message with the response
+
+              // Clean the response to remove XML tags before sending
+              const cleanedResponse = messageCleanser.cleanMessageWithOptions(response, {
+                tagsToHideContent: ['initial_understanding', 'thinking', 'post_response'],
+              });
+
+              // Create message with the cleaned response
               await messageService.createMessage({
-                content: response,
+                content: cleanedResponse,
                 personaId: personaId,
                 groupId: groupId,
               });

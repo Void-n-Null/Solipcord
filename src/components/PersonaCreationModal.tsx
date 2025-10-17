@@ -208,7 +208,7 @@ export function PersonaCreationModal({ onPersonaCreated }: PersonaCreationModalP
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g., A friendly AI enthusiast who loves discussing tech"
-              className="col-span-3 min-h-[80px] resize-none"
+              className="col-span-3 min-h-[80px] max-h-[120px] resize-none overflow-y-auto"
             />
           </div>
           

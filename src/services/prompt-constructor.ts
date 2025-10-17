@@ -1,12 +1,15 @@
 import { ConversationContext, ContextMessage } from '@/services/context-constructor';
+import { GroupPrompt } from '@/app/data/GroupPrompt';
+import { DMPrompt } from '@/app/data/DMPrompt';
 
 /**
- * Constructed prompt with system and user messages
+ * Message structure for AI model
  */
-export interface ConstructedPrompt {
-  system: string;
-  prompt: string;
+export interface AIMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
 }
+
 
 /**
  * Service for constructing optimized prompts from conversation context
@@ -15,75 +18,38 @@ class PromptConstructor {
   /**
    * Construct a group chat response prompt
    */
-  constructGroupChatPrompt(context: ConversationContext): ConstructedPrompt {
-    const { characterCard, participants, recentMessages, conversationName } = context;
-
-    // Build character description
-    const characterDescription = this.buildCharacterDescription(characterCard);
-
-    // Build participants list
-    const participantsList = this.buildParticipantsList(participants);
-
-    // Build conversation history
-    const conversationHistory = this.buildConversationHistory(recentMessages);
-
+  constructGroupChatPrompt(context: ConversationContext): AIMessage[] {
     // System prompt
-    const system = `You are a persona in a Discord-like social network.
+    const system = GroupPrompt.systemPrompt(context);
+    const user = GroupPrompt.userPrompt(context);
+    const prefill = GroupPrompt.prefill(context);
 
-${characterDescription}
+    const messages: AIMessage[] = [
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+      { role: 'assistant', content: prefill },
+    ];
 
-You are currently in a group chat called "${conversationName}".
-Other participants: ${participantsList}
 
-Guidelines:
-- Stay in character at all times
-- Keep responses concise (1-2 sentences, maximum)
-- Be natural and conversational
-- React naturally to what others say
-- Don't overthink - respond authentically`;
-
-    // User prompt
-    const prompt = `Recent conversation history:
-${conversationHistory}
-
-Generate ${characterCard.name}'s response:`;
-
-    return { system, prompt };
+    return messages;
   }
 
   /**
    * Construct a direct message response prompt
    */
-  constructDMPrompt(context: ConversationContext): ConstructedPrompt {
-    const { characterCard, recentMessages } = context;
-
-    // Build character description
-    const characterDescription = this.buildCharacterDescription(characterCard);
-
-    // Build conversation history
-    const conversationHistory = this.buildConversationHistory(recentMessages);
-
+  constructDMPrompt(context: ConversationContext): AIMessage[] {
     // System prompt
-    const system = `You are an AI persona in a Discord-like social network.
+    const system = DMPrompt.systemPrompt(context);
+    const user = DMPrompt.userPrompt(context);
+    const prefill = DMPrompt.prefill(context);
 
-${characterDescription}
+    const messages: AIMessage[] = [
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+      { role: 'assistant', content: prefill },
+    ];
 
-You are having a direct message conversation with the user.
-
-Guidelines:
-- Stay in character at all times
-- Be personable and engaging
-- Keep responses concise but natural
-- Show genuine interest in the conversation
-- Respond authentically to what the user says`;
-
-    // User prompt
-    const prompt = `Recent conversation:
-${conversationHistory}
-
-Generate your response:`;
-
-    return { system, prompt };
+    return messages;
   }
 
   /**

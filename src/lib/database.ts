@@ -60,6 +60,7 @@ export class DiscordDatabase {
   // Persona operations
   async createPersona(data: {
     username: string;
+    description?: string;
     imageUrl?: string;
     headerColor?: string;
     friendsIds?: string[];

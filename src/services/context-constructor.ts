@@ -18,7 +18,7 @@ export interface ConversationParticipant {
   id: string;
   name: string;
   type: 'user' | 'persona';
-  description?: string;
+  description?: string | null;
 }
 
 /**
@@ -102,7 +102,7 @@ class ContextConstructor {
       throw new Error(`Persona ${personaId} not found`);
     }
 
-    const description = (persona as Record<string, unknown>).description as string || '';
+    const description = persona.description || '';
 
     return {
       id: persona.id,
@@ -148,7 +148,7 @@ class ContextConstructor {
               id: msg.personaId || '',
               name: msg.persona?.username || 'Unknown',
               type: 'persona' as const,
-              description: (msg.persona as Record<string, unknown>)?.description as string,
+              description: msg.persona?.description || undefined,
             },
         createdAt: msg.createdAt,
       }));
@@ -184,7 +184,7 @@ class ContextConstructor {
           id: p.id,
           name: p.username,
           type: 'persona' as const,
-          description: (p as Record<string, unknown>).description as string,
+          description: p.description || undefined,
         }));
       } else {
         // For DM, return the persona and note that user is also a participant
@@ -202,7 +202,7 @@ class ContextConstructor {
             id: dm.persona.id,
             name: dm.persona.username,
             type: 'persona' as const,
-            description: (dm.persona as Record<string, unknown>).description as string,
+            description: dm.persona.description || undefined,
           },
           {
             id: 'user',

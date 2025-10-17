@@ -1,6 +1,3 @@
-// Simplified Neural Social Network Schema
-// Focus on groups and DMs with AI personas
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -11,87 +8,71 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Main user who controls the instance
 model User {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  email     String?  @unique
+  id        String    @id @default(cuid())
+  username  String    @unique
+  email     String?   @unique
   avatar    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  // Relations
-  messages      Message[]
-  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  messages  Message[]
+
   @@map("users")
 }
 
-// AI-generated personas (fake users)
 model Persona {
-  id               String   @id @default(cuid())
-  username         String   @unique
-  imageUrl         String?  // Avatar image URL
-  headerColor      String?  // RGB color for header (format: "rgb(r,g,b)")
-  description      String?  // Persona description/background
-  friendsIds       String[] // Array of persona IDs that are friends
-  isFriendOfUser   Boolean  @default(false) // Whether this persona is friends with the main user
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  
-  // Relations
-  messages       Message[]
+  id             String          @id @default(cuid())
+  username       String          @unique
+  imageUrl       String?
+  friendsIds     String[]
+  isFriendOfUser Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  headerColor    String?
+  description    String?
   directMessages DirectMessage[]
-  
+  messages       Message[]
+
   @@map("personas")
 }
 
-// Group chats
 model Group {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   name            String
-  participantIds  String[] // Array of persona IDs that are participants
-  lastInteraction DateTime? // Track most recent interaction (message created)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  // Relations
-  messages  Message[]
-  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  participantIds  String[]
+  lastInteraction DateTime?
+  messages        Message[]
+
   @@map("groups")
 }
 
-// Direct messages (DMs) - between user and persona
 model DirectMessage {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   personaId       String
-  lastInteraction DateTime? // Track most recent interaction (message created)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  // Relations
-  persona   Persona  @relation(fields: [personaId], references: [id], onDelete: Cascade)
-  messages  Message[]
-  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lastInteraction DateTime?
+  persona         Persona   @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  messages        Message[]
+
   @@map("direct_messages")
 }
 
-// Messages in groups or DMs
 model Message {
-  id              String   @id @default(cuid())
+  id              String         @id @default(cuid())
   content         String
-  userId          String?  // If sent by the real user
-  personaId       String?  // If sent by a persona
-  groupId         String?  // If in a group chat
-  directMessageId String?  // If in a DM
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  // Relations
-  user            User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
-  persona         Persona?        @relation(fields: [personaId], references: [id], onDelete: SetNull)
-  group           Group?         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId          String?
+  personaId       String?
+  groupId         String?
+  directMessageId String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
   directMessage   DirectMessage? @relation(fields: [directMessageId], references: [id], onDelete: Cascade)
-  
+  group           Group?         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  persona         Persona?       @relation(fields: [personaId], references: [id])
+  user            User?          @relation(fields: [userId], references: [id])
+
   @@map("messages")
 }
-

@@ -45,6 +45,11 @@ export async function logAIRequest(log: AIRequestLog) {
     const logs = readLogs();
     logs.push(log);
     fs.writeFileSync(logPath, JSON.stringify(logs, null, 2));
+
+    // Log confirmation with response details
+    const statusEmoji = log.status === 'success' ? '✅' : '❌';
+    const truncatedResponse = log.response.substring(0, 100) + (log.response.length > 100 ? '...' : '');
+    console.log(`${statusEmoji} [AI Logger] Request logged (${log.model}, ${log.duration}ms) - Response: "${truncatedResponse}"`);
   } catch (error) {
     // Silently fail to avoid breaking the app
     console.error('[AI Logger] Failed to write log:', error);

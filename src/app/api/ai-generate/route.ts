@@ -83,7 +83,7 @@ export async function GET() {
     message: 'OpenRouter AI Generation API',
     endpoint: '/api/ai-generate',
     method: 'POST',
-    description: 'Generate AI responses for group chat messages using OpenRouter and GPT-4 OSS 120B model',
+    description: 'Generate AI responses for group chat messages using custom OpenRouter client and Google Gemini 2.5 Flash model',
     requestBody: {
       personaName: {
         type: 'string',
@@ -135,8 +135,8 @@ export async function GET() {
     },
     requirements: {
       environment: 'OPENROUTER_API_KEY must be set in .env',
-      model: 'openai/gpt-oss-120b (via OpenRouter)',
-      provider: 'Cerebras (provider)',
+      model: 'google/gemini-2.5-flash-preview-09-2025 (via OpenRouter)',
+      provider: 'Custom OpenRouter client with retry logic',
     },
   });
 }
