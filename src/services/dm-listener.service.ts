@@ -15,80 +15,43 @@ class DMListenerService {
   private startListeningToDM(dmId: string, personaId: string, personaName: string) {
     // Check if already listening
     if (this.listeners.has(dmId)) {
-      console.log(`Already listening to DM ${dmId}`);
+      console.log(`ℹ️ [DM] Already listening to DM ${dmId}`);
       return;
     }
 
-    console.log(`[DMListener] Starting listener for DM ${dmId} (${personaName})`);
+    console.log(`📍 [DM] Starting listener for DM ${dmId} (${personaName})`);
 
     // Set up listener for this specific DM
     const unsubscribe = messageEvents.onSpecificDMMessageCreated(dmId, async (event) => {
-      console.log('\n' + '='.repeat(80));
-      console.log('🔔 DM LISTENER EVENT TRIGGERED');
-      console.log('='.repeat(80));
-      console.log(`📍 DM ID: ${dmId}`);
-      console.log(`👤 Persona: ${personaName}`);
-      console.log(`📝 Message ID: ${event.message.id}`);
-      console.log(`💬 Content: "${event.message.content}"`);
-      console.log(`👥 From User ID: ${event.message.userId || 'NONE'}`);
-      console.log(`🤖 From Persona ID: ${event.message.personaId || 'NONE'}`);
-      console.log(`ℹ️  Event has dm?: ${!!event.dm}`);
-      console.log(`ℹ️  Event has directMessageId?: ${!!event.directMessageId}`);
+      console.log(`🔔 [DM] Listener triggered - ${personaName}: "${event.message.content}"`);
+      const sender = event.message.userId ? `User ${event.message.userId}` : `Persona ${event.message.personaId}`;
+      console.log(`👤 [DM] From: ${sender}`);
 
       // Only respond to user messages (not persona messages)
       if (!event.message.userId) {
-        console.log('⏭️  SKIPPING: Message is from persona, not user');
-        console.log('='.repeat(80) + '\n');
+        console.log('⏭️ [DM] Skipping - message is from persona');
         return;
       }
 
-      console.log('✅ MESSAGE IS FROM USER - WILL RESPOND');
+      console.log('✅ [DM] Responding to user message');
 
       try {
         // Auto-respond with persona greeting
         const response = `Hi I'm ${personaName}`;
 
-        console.log(`\n🤖 Preparing response: "${response}"`);
-        console.log(`📤 Sending as persona: ${personaId}`);
-        console.log(`📬 To DM: ${dmId}`);
-        
-        // Verify parameters before calling service
-        console.log(`\n📋 Validating parameters:`);
-        console.log(`  - content: "${response}" (type: ${typeof response})`);
-        console.log(`  - personaId: "${personaId}" (type: ${typeof personaId})`);
-        console.log(`  - directMessageId: "${dmId}" (type: ${typeof dmId})`);
+        console.log(`📤 [DM] Sending response: "${response}"`);
 
         const createParams = {
           content: response,
           personaId: personaId,
           directMessageId: dmId,
         };
-        
-        console.log(`\n🔧 Final params object:`, JSON.stringify(createParams, null, 2));
 
         const createdMessage = await messageService.createMessage(createParams);
-        
-        console.log('✅ Message created with ID:', createdMessage.id);
-        console.log('📊 Created message object:', {
-          id: createdMessage.id,
-          content: createdMessage.content,
-          personaId: createdMessage.personaId,
-          userId: createdMessage.userId,
-          directMessageId: createdMessage.directMessageId,
-          createdAt: createdMessage.createdAt,
-        });
-        console.log('✅ ✅ ✅ RESPONSE SENT SUCCESSFULLY ✅ ✅ ✅');
-        console.log('='.repeat(80) + '\n');
+        console.log('✅ [DM] Response sent successfully');
 
       } catch (error) {
-        console.log('❌ ❌ ❌ FAILED TO SEND RESPONSE ❌ ❌ ❌');
-        console.error(`Error type:`, error instanceof Error ? error.constructor.name : typeof error);
-        console.error(`Error message:`, error instanceof Error ? error.message : String(error));
-        console.error(`Full error:`, error);
-        if (error instanceof Error && error.stack) {
-          console.error(`Stack trace:\n`, error.stack);
-        }
-        console.log('='.repeat(80) + '\n');
+        console.error('❌ [DM] Failed to send response:', error);
       }
     });
 
@@ -104,7 +67,7 @@ class DMListenerService {
     if (unsubscribe) {
       unsubscribe();
       this.listeners.delete(dmId);
-      console.log(`[DMListener] Stopped listening to DM ${dmId}`);
+      console.log(`✅ [DM] Stopped listening to DM ${dmId}`);
     }
   }
 
@@ -113,13 +76,11 @@ class DMListenerService {
    */
   async initialize() {
     if (this.isRunning) {
-      console.log('[DMListener] Service already running');
+      console.log('ℹ️ [DM] Service already running');
       return;
     }
 
-    console.log('\n' + '█'.repeat(80));
-    console.log('🚀 INITIALIZING DM LISTENER SERVICE');
-    console.log('█'.repeat(80));
+    console.log('🚀 [DM] Initializing DM listener service');
 
     try {
       // Import database directly (server-side)
@@ -127,23 +88,18 @@ class DMListenerService {
 
       // Fetch all existing DMs from database
       const dms = await db.getAllDirectMessages();
-      console.log(`📊 Found ${dms.length} DM conversations`);
-      console.log('─'.repeat(80));
+      console.log(`📊 [DM] Found ${dms.length} DM conversations`);
 
       // Set up listener for each DM
       for (const dm of dms) {
-        console.log(`  ✓ Setting up listener: ${dm.persona.username} (${dm.id})`);
+        console.log(`✅ [DM] Setting up listener: ${dm.persona.username}`);
         this.startListeningToDM(dm.id, dm.persona.id, dm.persona.username);
       }
 
       this.isRunning = true;
-      console.log('─'.repeat(80));
-      console.log(`✅ SERVICE RUNNING - ${this.listeners.size} ACTIVE LISTENERS`);
-      console.log('█'.repeat(80) + '\n');
+      console.log(`✅ [DM] Service running - ${this.listeners.size} active listeners`);
     } catch (error) {
-      console.log('❌'.repeat(40));
-      console.error('FAILED TO INITIALIZE SERVICE:', error);
-      console.log('❌'.repeat(40) + '\n');
+      console.error('❌ [DM] Failed to initialize service:', error);
       throw error;
     }
   }
@@ -152,7 +108,7 @@ class DMListenerService {
    * Add a listener for a newly created DM
    */
   addDMListener(dmId: string, personaId: string, personaName: string) {
-    console.log(`[DMListener] Adding listener for new DM ${dmId}`);
+    console.log(`ℹ️ [DM] Adding listener for new DM ${dmId}`);
     this.startListeningToDM(dmId, personaId, personaName);
   }
 
@@ -160,16 +116,16 @@ class DMListenerService {
    * Stop all listeners and shut down the service
    */
   shutdown() {
-    console.log('[DMListener] Shutting down service...');
+    console.log('🛑 [DM] Shutting down service...');
 
     for (const [dmId, unsubscribe] of this.listeners.entries()) {
       unsubscribe();
-      console.log(`[DMListener] Stopped listener for DM ${dmId}`);
+      console.log(`✅ [DM] Stopped listener for DM ${dmId}`);
     }
 
     this.listeners.clear();
     this.isRunning = false;
-    console.log('[DMListener] Service shut down');
+    console.log('✅ [DM] Service shut down');
   }
 
   /**

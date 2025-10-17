@@ -1,5 +1,9 @@
 import { messageEvents } from '@/events/message.events';
 import { messageService } from '@/services/message.service';
+import { contextConstructor } from '@/services/context-constructor';
+import { promptConstructor } from '@/services/prompt-constructor';
+import { aiUtils } from '@/lib/utils';
+import { prisma } from '@/lib/database';
 
 /**
  * Background service that listens to all group chat conversations
@@ -12,15 +16,14 @@ class GroupChatListenerService {
   /**
    * Start listening to a specific group conversation
    */
-  private startListeningToGroup(groupId: string, participantIds: string[], participantNames: Map<string, string>) {
+  private startListeningToGroup(groupId: string) {
     // Check if already listening
     if (this.listeners.has(groupId)) {
-      console.log(`Already listening to group ${groupId}`);
+      console.log(`ℹ️ [GROUP] Already listening to group ${groupId}`);
       return;
     }
 
-    console.log(`[GroupListener] Starting listener for group ${groupId}`);
-    console.log(`[GroupListener] Participants: ${Array.from(participantNames.values()).join(', ')}`);
+    console.log(`📍 [GROUP] Starting listener for group ${groupId}`);
 
     // Set up listener for this specific group
     const unsubscribe = messageEvents.onGroupMessageCreated(async (event) => {
@@ -29,86 +32,77 @@ class GroupChatListenerService {
         return;
       }
 
-      console.log('\n' + '='.repeat(80));
-      console.log('🔔 GROUP LISTENER EVENT TRIGGERED');
-      console.log('='.repeat(80));
-      console.log(`📍 Group ID: ${groupId}`);
-      console.log(`📝 Message ID: ${event.message.id}`);
-      console.log(`💬 Content: "${event.message.content}"`);
-      console.log(`👥 From User ID: ${event.message.userId || 'NONE'}`);
-      console.log(`🤖 From Persona ID: ${event.message.personaId || 'NONE'}`);
+      console.log(`🔔 [GROUP] Listener triggered: "${event.message.content}"`);
+      const sender = event.message.userId ? `User ${event.message.userId}` : `Persona ${event.message.personaId}`;
+      console.log(`👤 [GROUP] From: ${sender}`);
 
       // Only respond to user messages (not persona messages)
       if (!event.message.userId) {
-        console.log('⏭️  SKIPPING: Message is from persona, not user');
-        console.log('='.repeat(80) + '\n');
+        console.log('⏭️ [GROUP] Skipping - message is from persona');
         return;
       }
 
-      console.log('✅ MESSAGE IS FROM USER - WILL RESPOND WITH ALL PARTICIPANTS');
+      console.log('✅ [GROUP] Generating AI responses for all participants');
 
       try {
-        // Have each persona respond
-        for (const personaId of participantIds) {
-          const personaName = participantNames.get(personaId) || 'Unknown';
-          
-          // Skip if this persona was the one who sent the message (shouldn't happen, but safety check)
-          if (event.message.personaId === personaId) {
-            continue;
-          }
+        // Fetch group details to get participant IDs
+        const group = await prisma.group.findUnique({
+          where: { id: groupId },
+        });
 
-          const response = `oh wow, nice group, im ${personaName}`;
-
-          console.log(`\n🤖 Preparing response from: ${personaName}`);
-          console.log(`📤 Persona ID: ${personaId}`);
-          console.log(`💬 Response: "${response}"`);
-          console.log(`📬 To Group: ${groupId}`);
-          
-          try {
-            // Verify parameters before calling service
-            console.log(`\n📋 Validating parameters:`);
-            console.log(`  - content: "${response}" (type: ${typeof response})`);
-            console.log(`  - personaId: "${personaId}" (type: ${typeof personaId})`);
-            console.log(`  - groupId: "${groupId}" (type: ${typeof groupId})`);
-
-            const createParams = {
-              content: response,
-              personaId: personaId,
-              groupId: groupId,
-            };
-            
-            console.log(`\n🔧 Final params object:`, JSON.stringify(createParams, null, 2));
-
-            const createdMessage = await messageService.createMessage(createParams);
-            
-            console.log('✅ Message created with ID:', createdMessage.id);
-            console.log('📊 Created message object:', {
-              id: createdMessage.id,
-              content: createdMessage.content,
-              personaId: createdMessage.personaId,
-              userId: createdMessage.userId,
-              groupId: createdMessage.groupId,
-              createdAt: createdMessage.createdAt,
-            });
-          } catch (personaError) {
-            console.log(`❌ FAILED TO SEND RESPONSE FROM ${personaName}`);
-            console.error(`Error type:`, personaError instanceof Error ? personaError.constructor.name : typeof personaError);
-            console.error(`Error message:`, personaError instanceof Error ? personaError.message : String(personaError));
-          }
+        if (!group) {
+          console.error(`❌ [GROUP] Group ${groupId} not found`);
+          return;
         }
+
+        // Have each persona respond in parallel
+        const responsePromises = group.participantIds
+          .filter(personaId => event.message.personaId !== personaId) // Skip the sender
+          .map(async (personaId) => {
+            console.log(`🤖 [GROUP] Generating AI response from persona: ${personaId}`);
+            
+            try {
+              // Build conversation context
+              const context = await contextConstructor.constructContext({
+                personaId,
+                conversationId: groupId,
+                conversationType: 'group',
+                messageLimit: 50,
+              });
+
+              // Construct prompt from context
+              const { system, prompt } = promptConstructor.constructGroupChatPrompt(context);
+
+              console.log(`📝 [GROUP] Prompt constructed for ${context.characterCard.name}`);
+
+              // Generate AI response
+              const response = await aiUtils.generateText({
+                system,
+                prompt,
+                temperature: 0.7,
+                prefill: 'thats based because',
+              });
+
+              console.log(`📤 [GROUP] Generated response from ${context.characterCard.name}: "${response.substring(0, 100)}..."`);
+              
+              // Create message with the response
+              await messageService.createMessage({
+                content: response,
+                personaId: personaId,
+                groupId: groupId,
+              });
+            } catch (personaError) {
+              console.error(`❌ [GROUP] Failed to generate/send response for persona ${personaId}:`, personaError);
+            }
+          });
+
+        // Wait for all personas to respond in parallel
+        await Promise.all(responsePromises);
         
-        console.log('\n✅ ✅ ✅ ALL RESPONSES SENT SUCCESSFULLY ✅ ✅ ✅');
-        console.log('='.repeat(80) + '\n');
+        console.log('✅ [GROUP] All AI responses generated and sent successfully');
 
       } catch (error) {
-        console.log('❌ ❌ ❌ FAILED TO SEND RESPONSES ❌ ❌ ❌');
-        console.error(`Error type:`, error instanceof Error ? error.constructor.name : typeof error);
-        console.error(`Error message:`, error instanceof Error ? error.message : String(error));
-        console.error(`Full error:`, error);
-        if (error instanceof Error && error.stack) {
-          console.error(`Stack trace:\n`, error.stack);
-        }
-        console.log('='.repeat(80) + '\n');
+        console.error('❌ [GROUP] Failed to generate responses:', error);
       }
     });
 
@@ -124,7 +118,7 @@ class GroupChatListenerService {
     if (unsubscribe) {
       unsubscribe();
       this.listeners.delete(groupId);
-      console.log(`[GroupListener] Stopped listening to group ${groupId}`);
+      console.log(`✅ [GROUP] Stopped listening to group ${groupId}`);
     }
   }
 
@@ -133,13 +127,11 @@ class GroupChatListenerService {
    */
   async initialize() {
     if (this.isRunning) {
-      console.log('[GroupListener] Service already running');
+      console.log('ℹ️ [GROUP] Service already running');
       return;
     }
 
-    console.log('\n' + '█'.repeat(80));
-    console.log('🚀 INITIALIZING GROUP CHAT LISTENER SERVICE');
-    console.log('█'.repeat(80));
+    console.log('🚀 [GROUP] Initializing group chat listener service');
 
     try {
       // Import database directly (server-side)
@@ -147,32 +139,18 @@ class GroupChatListenerService {
 
       // Fetch all existing groups from database
       const groups = await db.getAllGroups();
-      console.log(`📊 Found ${groups.length} group conversations`);
-      console.log('─'.repeat(80));
+      console.log(`📊 [GROUP] Found ${groups.length} group conversations`);
 
       // Set up listener for each group
       for (const group of groups) {
-        // Fetch persona details for mapping IDs to names
-        const personas = await db.client.persona.findMany({
-          where: { id: { in: group.participantIds } },
-        });
-
-        const participantNames = new Map(
-          personas.map(p => [p.id, p.username])
-        );
-
-        console.log(`  ✓ Setting up listener: ${group.name} (${group.id})`);
-        this.startListeningToGroup(group.id, group.participantIds, participantNames);
+        console.log(`✅ [GROUP] Setting up listener: ${group.name}`);
+        this.startListeningToGroup(group.id);
       }
 
       this.isRunning = true;
-      console.log('─'.repeat(80));
-      console.log(`✅ SERVICE RUNNING - ${this.listeners.size} ACTIVE LISTENERS`);
-      console.log('█'.repeat(80) + '\n');
+      console.log(`✅ [GROUP] Service running - ${this.listeners.size} active listeners`);
     } catch (error) {
-      console.log('❌'.repeat(40));
-      console.error('FAILED TO INITIALIZE SERVICE:', error);
-      console.log('❌'.repeat(40) + '\n');
+      console.error('❌ [GROUP] Failed to initialize service:', error);
       throw error;
     }
   }
@@ -181,29 +159,20 @@ class GroupChatListenerService {
    * Add a listener for a newly created group
    */
   async addGroupListener(groupId: string) {
-    console.log(`[GroupListener] Adding listener for new group ${groupId}`);
+    console.log(`ℹ️ [GROUP] Adding listener for new group ${groupId}`);
     
     try {
       const { db } = await import('@/lib/database');
       const group = await db.getGroupById(groupId);
       
       if (!group) {
-        console.error(`[GroupListener] Group ${groupId} not found`);
+        console.error(`❌ [GROUP] Group ${groupId} not found`);
         return;
       }
 
-      // Fetch persona details for mapping IDs to names
-      const personas = await db.client.persona.findMany({
-        where: { id: { in: group.participantIds } },
-      });
-
-      const participantNames = new Map(
-        personas.map(p => [p.id, p.username])
-      );
-
-      this.startListeningToGroup(group.id, group.participantIds, participantNames);
+      this.startListeningToGroup(groupId);
     } catch (error) {
-      console.error(`[GroupListener] Failed to add listener for group ${groupId}:`, error);
+      console.error(`❌ [GROUP] Failed to add listener for group ${groupId}:`, error);
     }
   }
 
@@ -211,16 +180,16 @@ class GroupChatListenerService {
    * Stop all listeners and shut down the service
    */
   shutdown() {
-    console.log('[GroupListener] Shutting down service...');
+    console.log('🛑 [GROUP] Shutting down service...');
 
     for (const [groupId, unsubscribe] of this.listeners.entries()) {
       unsubscribe();
-      console.log(`[GroupListener] Stopped listener for group ${groupId}`);
+      console.log(`✅ [GROUP] Stopped listener for group ${groupId}`);
     }
 
     this.listeners.clear();
     this.isRunning = false;
-    console.log('[GroupListener] Service shut down');
+    console.log('✅ [GROUP] Service shut down');
   }
 
   /**

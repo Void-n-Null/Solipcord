@@ -147,7 +147,7 @@ export function DMSideBar({ onCategorySelect, selectedCategory, onChatSelect, se
                       
                       {/* Username / Chat Name */}
                       <div className="flex-1 min-w-0">
-                        <div className="text-[16px] font-medium truncate">
+                        <div className={`text-[16px] font-medium truncate ${selectedChat?.id === chat.id ? 'text-white' : 'text-[#94959c]'}`}>
                           {chatName.length > 28 
                             ? `${chatName.substring(0, 29)}...` 
                             : chatName}

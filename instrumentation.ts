@@ -7,9 +7,7 @@
 export async function register() {
   // Only run on server-side
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    console.log('\n' + '🟢'.repeat(40));
-    console.log('⚡ SERVER STARTING - LOADING INSTRUMENTATION');
-    console.log('🟢'.repeat(40) + '\n');
+    console.log('🚀 [SERVER] Starting - loading instrumentation');
 
     // Import the services (dynamic import to avoid issues)
     const { dmListenerService } = await import('@/services/dm-listener.service');
@@ -22,13 +20,9 @@ export async function register() {
       // Initialize the group chat listener service
       await groupChatListenerService.initialize();
       
-      console.log('🎉'.repeat(40));
-      console.log('✅ ALL SERVICES INITIALIZED SUCCESSFULLY');
-      console.log('🎉'.repeat(40) + '\n');
+      console.log('✅ [SERVER] All services initialized successfully');
     } catch (error) {
-      console.log('🔴'.repeat(40));
-      console.error('❌ FAILED TO INITIALIZE SERVICES:', error);
-      console.log('🔴'.repeat(40) + '\n');
+      console.error('❌ [SERVER] Failed to initialize services:', error);
     }
   }
 }

@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 // Removed direct import of generateImage - now using API route
 
 interface PersonaCreationModalProps {
@@ -24,12 +25,13 @@ interface PersonaCreationModalProps {
 export function PersonaCreationModal({ onPersonaCreated }: PersonaCreationModalProps) {
   const [open, setOpen] = useState(false);
   const [username, setUsername] = useState('');
+  const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const queryClient = useQueryClient();
 
   const createPersonaMutation = useMutation({
-    mutationFn: async (data: { username: string; imageUrl?: string }) => {
+    mutationFn: async (data: { username: string; description?: string; imageUrl?: string }) => {
       const response = await fetch('/api/personas', {
         method: 'POST',
         headers: {
@@ -37,6 +39,7 @@ export function PersonaCreationModal({ onPersonaCreated }: PersonaCreationModalP
         },
         body: JSON.stringify({
           username: data.username,
+          description: data.description || undefined,
           imageUrl: data.imageUrl || undefined,
           isFriendOfUser: true,
         }),
@@ -56,6 +59,7 @@ export function PersonaCreationModal({ onPersonaCreated }: PersonaCreationModalP
       
       // Reset form
       setUsername('');
+      setDescription('');
       setImageUrl('');
       setOpen(false);
       
@@ -71,6 +75,7 @@ export function PersonaCreationModal({ onPersonaCreated }: PersonaCreationModalP
     if (!username.trim()) return;
     await createPersonaMutation.mutateAsync({
       username: username.trim(),
+      description: description.trim(),
       imageUrl: imageUrl.trim(),
     });
   };
@@ -153,6 +158,16 @@ export function PersonaCreationModal({ onPersonaCreated }: PersonaCreationModalP
     }
   };
 
+  const isValidUrl = (url: string): boolean => {
+    if (!url) return false;
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -183,6 +198,19 @@ export function PersonaCreationModal({ onPersonaCreated }: PersonaCreationModalP
               className="col-span-3"
             />
           </div>
+
+          <div className="grid grid-cols-4 items-start gap-4">
+            <label htmlFor="description" className="text-right text-sm font-medium pt-2">
+              Description
+            </label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g., A friendly AI enthusiast who loves discussing tech"
+              className="col-span-3 min-h-[80px] resize-none"
+            />
+          </div>
           
           <div className="grid grid-cols-4 items-center gap-4">
             <label htmlFor="imageUrl" className="text-right text-sm font-medium">
@@ -211,7 +239,7 @@ export function PersonaCreationModal({ onPersonaCreated }: PersonaCreationModalP
           </div>
           
           {/* Image Preview */}
-          {imageUrl && (
+          {imageUrl && isValidUrl(imageUrl) && (
             <div className="grid grid-cols-4 items-center gap-4">
               <label className="text-right text-sm font-medium">
                 Preview

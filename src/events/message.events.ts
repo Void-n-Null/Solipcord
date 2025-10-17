@@ -86,34 +86,14 @@ class MessageEventEmitter extends EventEmitter {
    * Emit a message created event
    */
   emitMessageCreated(payload: MessageCreatedEvent) {
-    console.log('\n' + '📡'.repeat(40));
-    console.log('🔊 EVENT EMITTER: emitMessageCreated called');
-    console.log('📡'.repeat(40));
-    console.log('Payload:', {
-      messageId: payload.message.id,
-      directMessageId: payload.directMessageId,
-      groupId: payload.groupId,
-      hasDM: !!payload.dm,
-    });
-    console.log('Listener count:', this.listenerCount(MessageEventType.MESSAGE_CREATED));
-    console.log('DM Listener count:', this.listenerCount(MessageEventType.DM_MESSAGE_CREATED));
-
-    console.log('\n🔊 Emitting MESSAGE_CREATED event...');
     this.emit(MessageEventType.MESSAGE_CREATED, payload);
 
     // Also emit specific DM or Group event
     if (payload.directMessageId) {
-      console.log('🔊 Emitting DM_MESSAGE_CREATED event...');
-      console.log('DM ID:', payload.directMessageId);
       this.emit(MessageEventType.DM_MESSAGE_CREATED, payload);
-      console.log('✅ DM event emitted!');
     } else if (payload.groupId) {
-      console.log('🔊 Emitting GROUP_MESSAGE_CREATED event...');
       this.emit(MessageEventType.GROUP_MESSAGE_CREATED, payload);
-      console.log('✅ Group event emitted!');
     }
-
-    console.log('📡'.repeat(40) + '\n');
   }
 
   /**

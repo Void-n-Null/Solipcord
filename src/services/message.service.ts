@@ -44,44 +44,25 @@ export class MessageService {
     });
 
 
-    console.log('📨 MESSAGE SERVICE: Message created in DB');
-
-    console.log('Message ID:', message.id);
-    console.log('Content:', message.content);
-    console.log('DM ID:', message.directMessageId);
-    console.log('Group ID:', message.groupId);
-    console.log('User ID:', message.userId);
-    console.log('Persona ID:', message.personaId);
+    const sender = message.userId ? `User ${message.userId}` : `Persona ${message.personaId}`;
+    console.log(`📝 [MSG] Message created - ${message.content.substring(0, 50)}`);
 
     // Update lastInteraction for DM or Group
     if (message.directMessageId) {
-      console.log('🔄 Updating lastInteraction for DM:', message.directMessageId);
       await db.updateDirectMessageLastInteraction(message.directMessageId);
     } else if (message.groupId) {
-      console.log('🔄 Updating lastInteraction for Group:', message.groupId);
       await db.updateGroupLastInteraction(message.groupId);
     }
 
     // Fetch DM data if this is a DM message
     let dm;
     if (message.directMessageId) {
-      console.log('🔍 Fetching DM data for:', message.directMessageId);
       dm = await this.dmRepository.findById(message.directMessageId);
-      console.log('✓ DM data fetched:', dm?.id);
     }
-
-    console.log('\n🚀 EMITTING MESSAGE CREATED EVENT...');
-    console.log('Event payload:', {
-      messageId: message.id,
-      directMessageId: message.directMessageId || 'none',
-      groupId: message.groupId || 'none',
-      hasDM: !!dm,
-    });
 
     // Verify we have either a DM or Group ID
     if (!message.directMessageId && !message.groupId) {
-      console.error('❌❌❌ CRITICAL: Message has neither directMessageId nor groupId!');
-      console.error('Message object:', message);
+      console.error('❌ [MSG] CRITICAL - Message has no DM or Group ID');
     }
 
     // Emit event with full context
@@ -92,24 +73,11 @@ export class MessageService {
       dm: dm || undefined,
     });
 
-    console.log('✅ EVENT EMITTED!');
-
-
     // Broadcast to WebSocket clients
     if (message.directMessageId) {
-      console.log(`DM ID: ${message.directMessageId}`);
-      console.log(`Message ID: ${message.id}`);
-      console.log(`Message content: "${message.content}"`);
-      console.log(`From user: ${message.userId ? 'YES' : 'NO'}`);
-      console.log(`From persona: ${message.personaId ? 'YES' : 'NO'}`);
       broadcastMessageToDM(message.directMessageId, message);
-      console.log('✅ BROADCAST COMPLETE\n');
     } else if (message.groupId) {
-      console.log('\n📡 ABOUT TO BROADCAST TO GROUP CLIENTS');
-      console.log(`Group ID: ${message.groupId}`);
-      console.log(`Message ID: ${message.id}`);
       broadcastMessageToGroup(message.groupId, message);
-      console.log('✅ BROADCAST COMPLETE\n');
     }
 
     return message;
@@ -219,25 +187,17 @@ export class MessageService {
 
     // Broadcast deletion to WebSocket clients
     if (message.directMessageId) {
-      console.log('\n📡 ABOUT TO BROADCAST MESSAGE DELETION TO DM CLIENTS');
-      console.log(`DM ID: ${message.directMessageId}`);
-      console.log(`Message ID: ${id}`);
       broadcastMessageToDM(message.directMessageId, {
         type: 'message_deleted',
         messageId: id,
         timestamp: new Date().toISOString(),
       });
-      console.log('✅ DELETION BROADCAST COMPLETE\n');
     } else if (message.groupId) {
-      console.log('\n📡 ABOUT TO BROADCAST MESSAGE DELETION TO GROUP CLIENTS');
-      console.log(`Group ID: ${message.groupId}`);
-      console.log(`Message ID: ${id}`);
       broadcastMessageToGroup(message.groupId, {
         type: 'message_deleted',
         messageId: id,
         timestamp: new Date().toISOString(),
       });
-      console.log('✅ DELETION BROADCAST COMPLETE\n');
     }
 
     return message;
